@@ -1,0 +1,5 @@
+{
+  "name": "Coherent Image Creator",
+  "description": "An AI-powered application that generates new images based on a reference image, maintaining style and context while incorporating new ideas.",
+  "requestFramePermissions": []
+}
