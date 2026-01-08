@@ -11,37 +11,44 @@ import Loader from './components/Loader';
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('upload');
   const [referenceImage, setReferenceImage] = useState<{data: string, mimeType: string} | null>(null);
-  const [themes, setThemes] = useState<string[]>([]);
-  const [currentThemeInput, setCurrentThemeInput] = useState('');
-  const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
+  const [themes, setThemes] = useState<string[]>(['']);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
 
   const handleImageUpload = (base64: string, mimeType: string) => {
     setReferenceImage({ data: base64, mimeType });
     setStep('themes');
   };
 
-  const addTheme = () => {
-    if (currentThemeInput.trim() && !themes.includes(currentThemeInput.trim())) {
-      setThemes([...themes, currentThemeInput.trim()]);
-      setCurrentThemeInput('');
+  const addThemeField = () => {
+    setThemes([...themes, '']);
+  };
+
+  const removeThemeField = (index: number) => {
+    if (themes.length > 1) {
+      setThemes(themes.filter((_, i) => i !== index));
+    } else {
+      setThemes(['']);
     }
   };
 
-  const removeTheme = (index: number) => {
-    setThemes(themes.filter((_, i) => i !== index));
+  const updateThemeValue = (index: number, value: string) => {
+    const newThemes = [...themes];
+    newThemes[index] = value;
+    setThemes(newThemes);
   };
 
   const handleSuggestPrompts = async () => {
-    if (!referenceImage || themes.length === 0) return;
+    const validThemes = themes.filter(t => t.trim() !== '');
+    if (!referenceImage || validThemes.length === 0) return;
     
     setIsProcessing(true);
-    setLoadingMsg('Analisando imagem e cruzando temas...');
+    setLoadingMsg('Analisando imagem e gerando variações para cada ideia...');
     
     try {
-      const result = await suggestPrompts(referenceImage.data, referenceImage.mimeType, themes);
+      const result = await suggestPrompts(referenceImage.data, referenceImage.mimeType, validThemes);
       setSuggestions(result.map((text, idx) => ({ id: idx, text })));
       setStep('prompts');
     } catch (error) {
@@ -56,7 +63,6 @@ const App: React.FC = () => {
     if (!referenceImage || selectedPrompts.length === 0) return;
 
     setIsProcessing(true);
-    
     const newResults: GeneratedImage[] = [];
     
     for (let i = 0; i < selectedPrompts.length; i++) {
@@ -88,13 +94,13 @@ const App: React.FC = () => {
 
   const resetApp = () => {
     setReferenceImage(null);
-    setThemes([]);
+    setThemes(['']);
     setSuggestions([]);
     setStep('upload');
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-black">
       <Header onReset={resetApp} hasImages={generatedImages.length > 0} goToGallery={() => setStep('gallery')} />
       
       <main className="flex-grow container mx-auto px-4 py-8 max-w-4xl">
@@ -119,8 +125,8 @@ const App: React.FC = () => {
                     <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Defina os Temas</h2>
-                    <p className="text-slate-500">Adicione conceitos, climas ou elementos que deseja ver.</p>
+                    <h2 className="text-2xl font-bold text-slate-800">Suas Ideias</h2>
+                    <p className="text-slate-500">Liste os temas ou conceitos que deseja explorar.</p>
                   </div>
                 </div>
 
@@ -128,53 +134,52 @@ const App: React.FC = () => {
                   {referenceImage && (
                     <div className="md:col-span-1">
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Imagem Base</p>
-                      <div className="relative group overflow-hidden rounded-2xl border-4 border-white shadow-lg">
+                      <div className="relative group overflow-hidden rounded-2xl border border-slate-200 shadow-md">
                         <img src={`data:${referenceImage.mimeType};base64,${referenceImage.data}`} alt="Preview" className="w-full h-56 object-cover" />
                       </div>
                     </div>
                   )}
                   
-                  <div className="md:col-span-2 space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-slate-700">Adicionar Novo Tema</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={currentThemeInput}
-                          onChange={(e) => setCurrentThemeInput(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addTheme()}
-                          placeholder="Ex: Cyberpunk, Neve, Estilo Picasso..."
-                          className="flex-grow p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                        />
-                        <button
-                          onClick={addTheme}
-                          className="bg-indigo-600 text-white px-6 rounded-2xl hover:bg-indigo-700 font-bold"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="min-h-[100px] p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                      <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Temas Selecionados</p>
-                      <div className="flex flex-wrap gap-2">
-                        {themes.length === 0 && <span className="text-slate-400 italic text-sm">Nenhum tema adicionado ainda...</span>}
-                        {themes.map((theme, idx) => (
-                          <div key={idx} className="bg-white border border-slate-200 px-4 py-2 rounded-full flex items-center gap-2 shadow-sm animate-in zoom-in duration-200">
-                            <span className="text-slate-700 font-medium">{theme}</span>
-                            <button onClick={() => removeTheme(idx)} className="text-slate-400 hover:text-red-500 font-bold px-1">&times;</button>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="md:col-span-2 space-y-4">
+                    <p className="text-sm font-semibold text-slate-700">Ideias e Temas:</p>
+                    <div className="space-y-3">
+                      {themes.map((theme, idx) => (
+                        <div key={idx} className="flex gap-2 animate-in slide-in-from-left-2 duration-200">
+                          <input
+                            type="text"
+                            value={theme}
+                            onChange={(e) => updateThemeValue(idx, e.target.value)}
+                            placeholder={`Ex: Ideia ${idx + 1}...`}
+                            className="flex-grow p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-black font-medium"
+                          />
+                          <button
+                            onClick={() => removeThemeField(idx)}
+                            className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors"
+                            title="Remover"
+                          >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                        </div>
+                      ))}
                     </div>
 
                     <button
-                      onClick={handleSuggestPrompts}
-                      disabled={themes.length === 0}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg active:scale-[0.98]"
+                      onClick={addThemeField}
+                      className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-bold text-sm px-2 py-1 transition-colors"
                     >
-                      Gerar Idéias de Prompt
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
+                      Adicionar outra ideia
                     </button>
+
+                    <div className="pt-6">
+                      <button
+                        onClick={handleSuggestPrompts}
+                        disabled={themes.every(t => t.trim() === '')}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg active:scale-[0.98]"
+                      >
+                        Gerar 2 Prompts por Ideia
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -187,8 +192,8 @@ const App: React.FC = () => {
                     <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Escolha os Melhores</h2>
-                    <p className="text-slate-500">Selecione uma ou mais idéias para gerar as imagens.</p>
+                    <h2 className="text-2xl font-bold text-slate-800">Selecione para Criar</h2>
+                    <p className="text-slate-500">Clique nos cards para selecionar quais imagens deseja gerar.</p>
                   </div>
                 </div>
                 <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} />
@@ -200,14 +205,14 @@ const App: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-800">Galeria Coerente</h2>
-                    <p className="text-slate-500">Resultados gerados a partir da sua imagem base.</p>
+                    <p className="text-slate-500">Resultados baseados na sua imagem de referência.</p>
                   </div>
                   <button 
                     onClick={() => setStep('themes')}
                     className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
-                    Novas Idéias
+                    Novas Ideias
                   </button>
                 </div>
                 <Gallery images={generatedImages} />

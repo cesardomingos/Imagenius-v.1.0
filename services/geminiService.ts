@@ -3,16 +3,16 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 /**
  * Suggests multiple prompts based on a reference image and a list of user themes.
+ * Now generates 2 prompts per theme.
  */
 export async function suggestPrompts(imageData: string, mimeType: string, themes: string[]): Promise<string[]> {
-  // Always use process.env.API_KEY directly when initializing the GoogleGenAI client instance.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const themesString = themes.join(", ");
-  const prompt = `Based on the attached reference image and these specific themes: [${themesString}], 
-  generate 4 unique and detailed image generation prompts in English. 
-  Each prompt should explore a different combination of the provided themes while maintaining the visual style, character, or core mood of the original image.
-  Return the output as a JSON array of 4 strings.`;
+  const prompt = `Based on the attached reference image and these specific theme ideas: [${themesString}], 
+  generate exactly 2 unique and detailed image generation prompts in English FOR EACH of the provided ideas. 
+  Each prompt should explore a variation of the specific idea while maintaining the visual style, character, or core mood of the original image.
+  Return the output as a flat JSON array of strings.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -32,17 +32,14 @@ export async function suggestPrompts(imageData: string, mimeType: string, themes
       }
     });
 
-    // Access the .text property directly (do not call as a method).
     const result = JSON.parse(response.text || "[]");
     return result;
   } catch (error) {
     console.error("Error suggesting prompts:", error);
-    return [
-      `A high-quality variation of the reference image incorporating ${themesString}`,
-      `A cinematic artistic reimagining focusing on ${themes[0] || 'visual style'}`,
-      `A detailed stylistic expansion based on ${themes[1] || 'context'}`,
-      `An avant-garde interpretation of the source image.`
-    ];
+    return themes.flatMap(t => [
+      `A high-quality variation of the reference image incorporating ${t}`,
+      `A cinematic artistic reimagining focusing on ${t}`
+    ]);
   }
 }
 
@@ -50,7 +47,6 @@ export async function suggestPrompts(imageData: string, mimeType: string, themes
  * Generates a new image based on a reference image and a chosen prompt.
  */
 export async function generateCoherentImage(referenceImageData: string, mimeType: string, prompt: string): Promise<string | null> {
-  // Always use process.env.API_KEY directly when initializing the GoogleGenAI client instance.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
@@ -64,7 +60,6 @@ export async function generateCoherentImage(referenceImageData: string, mimeType
       }
     });
 
-    // Iterate through all parts to find the image part as per guidelines.
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;

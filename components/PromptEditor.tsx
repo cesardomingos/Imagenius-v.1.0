@@ -20,7 +20,6 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) 
     );
   };
 
-  // Fixed undefined variable 'acc' by changing it to 'prev'
   const handleEdit = (id: number, text: string) => {
     setEditedPrompts(prev => ({ ...prev, [id]: text }));
   };
@@ -38,18 +37,18 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) 
           return (
             <div 
               key={s.id}
-              className={`group relative p-6 rounded-3xl border-2 transition-all duration-300 flex flex-col ${
+              onClick={() => toggleSelection(s.id)}
+              className={`group relative p-6 rounded-3xl border-2 transition-all duration-300 flex flex-col cursor-pointer ${
                 isSelected 
-                  ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-4 ring-indigo-50' 
-                  : 'border-slate-100 hover:border-slate-200 bg-white'
+                  ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50' 
+                  : 'border-slate-100 hover:border-slate-200 bg-white hover:shadow-sm'
               }`}
             >
               <div className="flex items-center justify-between mb-4">
                 <span className={`text-xs font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>
                   Sugestão #{s.id + 1}
                 </span>
-                <button 
-                  onClick={() => toggleSelection(s.id)}
+                <div 
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                     isSelected ? 'bg-indigo-600 text-white scale-110 shadow-lg' : 'bg-slate-100 text-slate-300 group-hover:bg-slate-200'
                   }`}
@@ -59,20 +58,27 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) 
                   ) : (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
                   )}
-                </button>
+                </div>
               </div>
 
               <textarea
                 value={editedPrompts[s.id]}
+                onClick={(e) => e.stopPropagation()} // Permite clicar no textarea sem desmarcar o card
                 onChange={(e) => handleEdit(s.id, e.target.value)}
-                className={`w-full p-4 text-sm rounded-xl outline-none transition-colors min-h-[120px] resize-none ${
-                  isSelected ? 'bg-white border border-indigo-200 text-indigo-900' : 'bg-slate-50 border border-transparent text-slate-600 focus:bg-white focus:border-slate-200'
+                className={`w-full p-4 text-sm rounded-xl outline-none transition-colors min-h-[120px] resize-none font-medium ${
+                  isSelected 
+                    ? 'bg-white border border-indigo-200 text-black' 
+                    : 'bg-slate-50 border border-transparent text-slate-900 focus:bg-white focus:border-slate-200'
                 }`}
                 placeholder="Edite o prompt se desejar..."
               />
               
-              <p className="mt-3 text-[10px] text-slate-400 font-medium">
-                {isSelected ? '✓ Selecionado para geração' : 'Clique no "+" para incluir na fila'}
+              <p className="mt-3 text-[11px] font-bold uppercase tracking-tight">
+                {isSelected ? (
+                  <span className="text-indigo-600">✓ Selecionado</span>
+                ) : (
+                  <span className="text-slate-400 group-hover:text-slate-500">Clique para selecionar</span>
+                )}
               </p>
             </div>
           );
@@ -89,7 +95,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) 
             <span className="text-white text-lg">{selectedIds.length}</span>
           </div>
           <span className="text-lg">
-            {selectedIds.length === 1 ? 'Gerar Imagem Selecionada' : `Gerar ${selectedIds.length} Imagens em Lote`}
+            {selectedIds.length === 0 ? 'Selecione pelo menos um' : (selectedIds.length === 1 ? 'Gerar Imagem Selecionada' : `Gerar ${selectedIds.length} Imagens em Lote`)}
           </span>
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
