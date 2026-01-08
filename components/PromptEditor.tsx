@@ -31,74 +31,80 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) 
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {suggestions.map((s) => {
           const isSelected = selectedIds.includes(s.id);
           return (
             <div 
               key={s.id}
               onClick={() => toggleSelection(s.id)}
-              className={`group relative p-6 rounded-3xl border-2 transition-all duration-300 flex flex-col cursor-pointer ${
+              className={`group relative p-8 rounded-[2rem] border-2 transition-all duration-300 flex flex-col cursor-pointer ${
                 isSelected 
-                  ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50' 
-                  : 'border-slate-100 hover:border-slate-200 bg-white hover:shadow-sm'
+                  ? 'border-indigo-600 bg-indigo-50/50 shadow-2xl shadow-indigo-200 ring-4 ring-indigo-50' 
+                  : 'border-slate-100 hover:border-indigo-200 bg-white hover:shadow-xl'
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <span className={`text-xs font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>
-                  Sugestão #{s.id + 1}
-                </span>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <span className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-black ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        {s.id + 1}
+                    </span>
+                    <span className={`text-[11px] font-black uppercase tracking-[0.2em] ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    Exploração Inteligente
+                    </span>
+                </div>
                 <div 
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                    isSelected ? 'bg-indigo-600 text-white scale-110 shadow-lg' : 'bg-slate-100 text-slate-300 group-hover:bg-slate-200'
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${
+                    isSelected ? 'bg-indigo-600 text-white scale-110 shadow-lg' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-100 group-hover:text-indigo-500'
                   }`}
                 >
                   {isSelected ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
                   )}
                 </div>
               </div>
 
               <textarea
                 value={editedPrompts[s.id]}
-                onClick={(e) => e.stopPropagation()} // Permite clicar no textarea sem desmarcar o card
+                onClick={(e) => e.stopPropagation()} 
                 onChange={(e) => handleEdit(s.id, e.target.value)}
-                className={`w-full p-4 text-sm rounded-xl outline-none transition-colors min-h-[120px] resize-none font-medium ${
+                className={`w-full p-5 text-sm leading-relaxed rounded-2xl outline-none transition-all min-h-[140px] resize-none font-bold ${
                   isSelected 
-                    ? 'bg-white border border-indigo-200 text-black' 
-                    : 'bg-slate-50 border border-transparent text-slate-900 focus:bg-white focus:border-slate-200'
+                    ? 'bg-white border border-indigo-200 text-black shadow-inner' 
+                    : 'bg-slate-50 border border-transparent text-slate-900 focus:bg-white focus:border-indigo-100'
                 }`}
-                placeholder="Edite o prompt se desejar..."
+                placeholder="Ajuste os detalhes se preferir..."
               />
               
-              <p className="mt-3 text-[11px] font-bold uppercase tracking-tight">
-                {isSelected ? (
-                  <span className="text-indigo-600">✓ Selecionado</span>
-                ) : (
-                  <span className="text-slate-400 group-hover:text-slate-500">Clique para selecionar</span>
+              <div className="mt-5 flex items-center justify-between">
+                <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600' : 'text-slate-300'}`}>
+                    {isSelected ? '✓ Selecionado' : 'Pronto para criar'}
+                </span>
+                {!isSelected && (
+                    <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Clique para adicionar</span>
                 )}
-              </p>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="sticky bottom-4 left-0 right-0 pt-6">
+      <div className="sticky bottom-6 left-0 right-0 pt-8 z-20">
         <button
           onClick={handleGenerateClick}
           disabled={selectedIds.length === 0}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:shadow-none text-white font-black py-5 px-8 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-4 transform active:scale-[0.98]"
+          className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:shadow-none text-white font-black py-6 px-10 rounded-[1.75rem] transition-all shadow-2xl flex items-center justify-center gap-6 transform active:scale-[0.98] group"
         >
-          <div className="flex items-center justify-center bg-white/20 w-8 h-8 rounded-lg">
-            <span className="text-white text-lg">{selectedIds.length}</span>
+          <div className="flex items-center justify-center bg-white/10 w-10 h-10 rounded-xl group-hover:bg-white/20 transition-colors">
+            <span className="text-white text-xl">{selectedIds.length}</span>
           </div>
-          <span className="text-lg">
-            {selectedIds.length === 0 ? 'Selecione pelo menos um' : (selectedIds.length === 1 ? 'Gerar Imagem Selecionada' : `Gerar ${selectedIds.length} Imagens em Lote`)}
+          <span className="text-xl tracking-tight">
+            {selectedIds.length === 0 ? 'Escolha sua direção' : (selectedIds.length === 1 ? 'Gerar Selecionada' : `Materializar ${selectedIds.length} Obras`)}
           </span>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          <svg className="w-6 h-6 animate-bounce-x" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
         </button>
       </div>

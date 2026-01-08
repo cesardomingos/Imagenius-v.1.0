@@ -45,7 +45,7 @@ const App: React.FC = () => {
     if (!referenceImage || validThemes.length === 0) return;
     
     setIsProcessing(true);
-    setLoadingMsg('Analisando imagem e gerando variações para cada ideia...');
+    setLoadingMsg('Imagenius está processando suas ideias...');
     
     try {
       const result = await suggestPrompts(referenceImage.data, referenceImage.mimeType, validThemes);
@@ -53,7 +53,7 @@ const App: React.FC = () => {
       setStep('prompts');
     } catch (error) {
       console.error(error);
-      alert("Erro ao sugerir prompts. Tente novamente.");
+      alert("Houve um pequeno erro ao processar. Tente novamente.");
     } finally {
       setIsProcessing(false);
     }
@@ -66,7 +66,7 @@ const App: React.FC = () => {
     const newResults: GeneratedImage[] = [];
     
     for (let i = 0; i < selectedPrompts.length; i++) {
-      setLoadingMsg(`Gerando imagem ${i + 1} de ${selectedPrompts.length}...`);
+      setLoadingMsg(`Gerando obra ${i + 1} de ${selectedPrompts.length}...`);
       try {
         const imageUrl = await generateCoherentImage(referenceImage.data, referenceImage.mimeType, selectedPrompts[i]);
         if (imageUrl) {
@@ -86,7 +86,7 @@ const App: React.FC = () => {
       setGeneratedImages(prev => [...newResults, ...prev]);
       setStep('gallery');
     } else {
-      alert("Falha ao gerar as imagens. Tente refinar seus prompts.");
+      alert("Falha ao gerar as imagens. Tente ajustar seus temas.");
     }
     
     setIsProcessing(false);
@@ -100,64 +100,67 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-black">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
       <Header onReset={resetApp} hasImages={generatedImages.length > 0} goToGallery={() => setStep('gallery')} />
       
       <main className="flex-grow container mx-auto px-4 py-8 max-w-4xl">
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 md:p-10 transition-all">
+          <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-500/5 border border-slate-200 p-6 md:p-12 transition-all">
             {step === 'upload' && (
-              <div className="space-y-8">
+              <div className="space-y-10">
                 <div className="text-center max-w-lg mx-auto">
-                  <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Comece com uma Referência</h2>
-                  <p className="text-slate-500 mt-3 text-lg">Faça o upload de uma imagem para manter o estilo e a coerência visual.</p>
+                  <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-none">Visão <span className="text-indigo-600">Referencial</span></h2>
+                  <p className="text-slate-500 mt-4 text-lg font-medium">Envie a imagem que guiará o gênio criativo.</p>
                 </div>
                 <ImageUploader onUpload={handleImageUpload} />
               </div>
             )}
 
             {step === 'themes' && (
-              <div className="space-y-8">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setStep('upload')} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-5">
+                  <button onClick={() => setStep('upload')} className="w-12 h-12 flex items-center justify-center hover:bg-slate-100 rounded-2xl transition-all border border-slate-100">
+                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Suas Ideias</h2>
-                    <p className="text-slate-500">Liste os temas ou conceitos que deseja explorar.</p>
+                    <h2 className="text-3xl font-extrabold text-slate-900">Mapeamento de Ideias</h2>
+                    <p className="text-slate-500 font-medium">Cada ideia resultará em 2 variações inteligentes.</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
                   {referenceImage && (
-                    <div className="md:col-span-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Imagem Base</p>
-                      <div className="relative group overflow-hidden rounded-2xl border border-slate-200 shadow-md">
-                        <img src={`data:${referenceImage.mimeType};base64,${referenceImage.data}`} alt="Preview" className="w-full h-56 object-cover" />
+                    <div className="md:col-span-4 lg:col-span-3">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Base de Referência</p>
+                      <div className="relative group overflow-hidden rounded-3xl border-4 border-white shadow-xl rotate-[-1deg]">
+                        <img src={`data:${referenceImage.mimeType};base64,${referenceImage.data}`} alt="Preview" className="w-full h-64 object-cover" />
                       </div>
                     </div>
                   )}
                   
-                  <div className="md:col-span-2 space-y-4">
-                    <p className="text-sm font-semibold text-slate-700">Ideias e Temas:</p>
+                  <div className="md:col-span-8 lg:col-span-9 space-y-6">
+                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                       <span className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></span>
+                       Insira suas ideias:
+                    </p>
                     <div className="space-y-3">
                       {themes.map((theme, idx) => (
-                        <div key={idx} className="flex gap-2 animate-in slide-in-from-left-2 duration-200">
+                        <div key={idx} className="flex gap-3 group animate-in slide-in-from-left-4 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
                           <input
                             type="text"
                             value={theme}
                             onChange={(e) => updateThemeValue(idx, e.target.value)}
-                            placeholder={`Ex: Ideia ${idx + 1}...`}
-                            className="flex-grow p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-black font-medium"
+                            placeholder={`Explorar ideia ${idx + 1}...`}
+                            className="flex-grow p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-black font-bold placeholder:text-slate-400"
                           />
                           <button
                             onClick={() => removeThemeField(idx)}
-                            className="p-4 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors"
-                            title="Remover"
+                            className="p-4 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all group-hover:text-slate-500"
+                            title="Descartar"
                           >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                           </button>
                         </div>
                       ))}
@@ -165,19 +168,19 @@ const App: React.FC = () => {
 
                     <button
                       onClick={addThemeField}
-                      className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-bold text-sm px-2 py-1 transition-colors"
+                      className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-extrabold text-sm px-4 py-2 bg-indigo-50 rounded-xl transition-all w-fit"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
-                      Adicionar outra ideia
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
+                      Nova Ideia
                     </button>
 
-                    <div className="pt-6">
+                    <div className="pt-8 border-t border-slate-100">
                       <button
                         onClick={handleSuggestPrompts}
                         disabled={themes.every(t => t.trim() === '')}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-lg active:scale-[0.98]"
+                        className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 text-white font-black py-5 px-8 rounded-[1.5rem] transition-all shadow-xl active:scale-[0.98] text-lg uppercase tracking-tight"
                       >
-                        Gerar 2 Prompts por Ideia
+                        Sugerir Prompts
                       </button>
                     </div>
                   </div>
@@ -186,14 +189,14 @@ const App: React.FC = () => {
             )}
 
             {step === 'prompts' && (
-              <div className="space-y-8">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setStep('themes')} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
+              <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="flex items-center gap-5">
+                  <button onClick={() => setStep('themes')} className="w-12 h-12 flex items-center justify-center hover:bg-slate-100 rounded-2xl transition-all border border-slate-100">
+                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Selecione para Criar</h2>
-                    <p className="text-slate-500">Clique nos cards para selecionar quais imagens deseja gerar.</p>
+                    <h2 className="text-3xl font-extrabold text-slate-900">Refinamento Imagenius</h2>
+                    <p className="text-slate-500 font-medium">Toque nos cards para selecionar os caminhos criativos.</p>
                   </div>
                 </div>
                 <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} />
@@ -201,18 +204,18 @@ const App: React.FC = () => {
             )}
 
             {step === 'gallery' && (
-              <div className="space-y-8">
-                <div className="flex justify-between items-center">
+              <div className="space-y-10">
+                <div className="flex justify-between items-end">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Galeria Coerente</h2>
-                    <p className="text-slate-500">Resultados baseados na sua imagem de referência.</p>
+                    <h2 className="text-4xl font-black text-slate-900">Sua <span className="text-indigo-600">Criação</span></h2>
+                    <p className="text-slate-500 font-medium">Resultados exclusivos mantendo a alma da sua referência.</p>
                   </div>
                   <button 
                     onClick={() => setStep('themes')}
-                    className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-5 py-2 rounded-xl font-bold transition-all flex items-center gap-2"
+                    className="bg-slate-900 text-white hover:bg-indigo-600 px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-3 shadow-lg"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
-                    Novas Ideias
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
+                    Gerar Outras
                   </button>
                 </div>
                 <Gallery images={generatedImages} />
@@ -222,9 +225,17 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-white border-t border-slate-200 py-8">
-        <div className="container mx-auto px-4 text-center text-slate-400 text-sm">
-          Coherent AI Tool • Criado com Google Gemini • {new Date().getFullYear()}
+      <footer className="bg-white border-t border-slate-200 py-10 mt-10">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex items-center justify-center gap-2 mb-4">
+             <div className="w-6 h-6 bg-slate-900 rounded-md flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.4 9.2H22L15.8 13.8L18.2 21L12 16.4L5.8 21L8.2 13.8L2 9.2H9.6L12 2Z" /></svg>
+             </div>
+             <span className="font-extrabold text-slate-900 tracking-tighter">Image<span className="text-indigo-600">nius</span></span>
+          </div>
+          <p className="text-slate-400 text-sm font-medium">
+            Desenvolvido com Inteligência Coerente via Google Gemini &bull; {new Date().getFullYear()}
+          </p>
         </div>
       </footer>
     </div>
