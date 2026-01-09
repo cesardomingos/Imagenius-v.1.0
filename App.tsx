@@ -107,7 +107,7 @@ const App: React.FC = () => {
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (
-          <div className="bg-white rounded-[2rem] shadow-2xl shadow-indigo-500/5 border border-slate-200 p-6 md:p-12 transition-all">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 border border-slate-200 p-6 md:p-12 transition-all">
             {step === 'upload' && (
               <div className="space-y-10">
                 <div className="text-center max-w-lg mx-auto">
@@ -133,8 +133,8 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
                   {referenceImage && (
                     <div className="md:col-span-4 lg:col-span-3">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Base de Referência</p>
-                      <div className="relative group overflow-hidden rounded-3xl border-4 border-white shadow-xl rotate-[-1deg]">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Referência</p>
+                      <div className="relative group overflow-hidden rounded-3xl border-4 border-white shadow-xl rotate-[-1deg] transition-transform hover:rotate-0">
                         <img src={`data:${referenceImage.mimeType};base64,${referenceImage.data}`} alt="Preview" className="w-full h-64 object-cover" />
                       </div>
                     </div>
@@ -180,7 +180,7 @@ const App: React.FC = () => {
                         disabled={themes.every(t => t.trim() === '')}
                         className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 text-white font-black py-5 px-8 rounded-[1.5rem] transition-all shadow-xl active:scale-[0.98] text-lg uppercase tracking-tight"
                       >
-                        Sugerir Prompts
+                        Materializar Sugestões
                       </button>
                     </div>
                   </div>
@@ -195,8 +195,8 @@ const App: React.FC = () => {
                     <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div>
-                    <h2 className="text-3xl font-extrabold text-slate-900">Refinamento Imagenius</h2>
-                    <p className="text-slate-500 font-medium">Toque nos cards para selecionar os caminhos criativos.</p>
+                    <h2 className="text-3xl font-extrabold text-slate-900">Refinamento Inteligente</h2>
+                    <p className="text-slate-500 font-medium">Selecione as direções que o Imagenius deve seguir.</p>
                   </div>
                 </div>
                 <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} />
@@ -207,8 +207,8 @@ const App: React.FC = () => {
               <div className="space-y-10">
                 <div className="flex justify-between items-end">
                   <div>
-                    <h2 className="text-4xl font-black text-slate-900">Sua <span className="text-indigo-600">Criação</span></h2>
-                    <p className="text-slate-500 font-medium">Resultados exclusivos mantendo a alma da sua referência.</p>
+                    <h2 className="text-4xl font-black text-slate-900">Obras <span className="text-indigo-600">Finalizadas</span></h2>
+                    <p className="text-slate-500 font-medium">Resultados exclusivos com a essência da sua referência.</p>
                   </div>
                   <button 
                     onClick={() => setStep('themes')}
@@ -225,16 +225,22 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-white border-t border-slate-200 py-10 mt-10">
+      <footer className="bg-white border-t border-slate-200 py-12 mt-12">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-             <div className="w-6 h-6 bg-slate-900 rounded-md flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.4 9.2H22L15.8 13.8L18.2 21L12 16.4L5.8 21L8.2 13.8L2 9.2H9.6L12 2Z" /></svg>
+          <div className="flex items-center justify-center gap-3 mb-6">
+             <div className="relative w-8 h-8 flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg shadow-md rotate-3"></div>
+                <svg className="w-5 h-5 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C7.58 2 4 5.58 4 10C4 12.5 5.15 14.73 6.94 16.21C7.6 16.76 8 17.58 8 18.44V20C8 21.1 8.9 22 10 22H14C15.1 22 16 21.1 16 20V18.44C16 17.58 16.4 16.76 17.06 16.21C18.85 14.73 20 12.5 20 10C20 5.58 16.42 2 12 2Z"/>
+                </svg>
              </div>
-             <span className="font-extrabold text-slate-900 tracking-tighter">Image<span className="text-indigo-600">nius</span></span>
+             <span className="font-black text-xl tracking-tighter">
+                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Ima</span>
+                <span className="text-slate-900">genius</span>
+             </span>
           </div>
-          <p className="text-slate-400 text-sm font-medium">
-            Desenvolvido com Inteligência Coerente via Google Gemini &bull; {new Date().getFullYear()}
+          <p className="text-slate-400 text-sm font-semibold tracking-wide">
+            ESTÚDIO DE COERÊNCIA VISUAL • GOOGLE GEMINI AI • {new Date().getFullYear()}
           </p>
         </div>
       </footer>
