@@ -1,25 +1,31 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageData } from "../types";
+import { CONFIG } from "./config";
+import { sanitizeInput } from "../utils/security";
 
 /**
- * Sugere prompts baseados em uma ou mais imagens de referência.
+ * Sugere prompts utilizando o modelo Pro com Thinking Config e sanitização rigorosa.
  */
 export async function suggestPrompts(images: ImageData[], themes: string[]): Promise<string[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const themesString = themes.join(", ");
+  // Sanitização de cada tema individualmente
+  const safeThemes = themes
+    .map(t => sanitizeInput(t, 100))
+    .filter(t => t.length > 0)
+    .join(", ");
+
   const isMulti = images.length > 1;
 
   const systemPrompt = isMulti 
-    ? `You are an AI Image Specialist. I've provided ${images.length} images. 
-       The FIRST image is the PRIMARY style/character reference. 
-       The OTHERS are CONTEXT/ELEMENT references (objects, backgrounds, colors).
-       Based on these ideas: [${themesString}], generate exactly 2 detailed prompts per idea that integrate elements from the context images into the primary style.
-       Return a flat JSON array of strings.`
-    : `Based on the provided reference image and these themes: [${themesString}], 
-       generate exactly 2 unique prompts per idea that maintain visual style.
-       Return a flat JSON array of strings.`;
+    ? `You are a professional visual director. 
+       Reference 1 is the primary aesthetic anchor. Other images are context. 
+       Themes requested: [${safeThemes}]. 
+       Task: Generate exactly 2 sophisticated prompts per theme that maintain the visual soul of Reference 1.
+       Return a flat JSON array of strings only.`
+    : `Maintain style from reference. Create 2 unique prompts for: [${safeThemes}].
+       Return a flat JSON array of strings only.`;
 
   const imageParts = images.map(img => ({
     inlineData: { data: img.data, mimeType: img.mimeType }
@@ -27,11 +33,12 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: CONFIG.MODELS.TEXT,
       contents: {
         parts: [...imageParts, { text: systemPrompt }]
       },
       config: {
+        thinkingConfig: { thinkingBudget: 4000 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -42,26 +49,21 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
 
     return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Error suggesting prompts:", error);
-    return themes.flatMap(t => [
-      `A coherent variation integrating provided references for ${t}`,
-      `A cinematic expansion of the primary style focusing on ${t}`
-    ]);
+    console.error("[Security] Request failed at suggestion layer");
+    if (error instanceof Error && error.message.includes("Requested entity was not found")) {
+      throw new Error("API_KEY_ERROR");
+    }
+    throw new Error("SERVICE_UNAVAILABLE");
   }
 }
 
 /**
- * Gera a imagem final com coerência multi-referencial.
+ * Gera a imagem final com alta resolução e prompt sanitizado.
  */
 export async function generateCoherentImage(images: ImageData[], prompt: string): Promise<string | null> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const isMulti = images.length > 1;
-
-  const instruction = isMulti
-    ? `PRIMARY STYLE: Image 1. CONTEXT ELEMENTS: Images 2 to ${images.length}. 
-       Apply the following prompt to create a NEW image that merges these elements: ${prompt}. 
-       Ensure high resolution and perfect artistic coherence.`
-    : `Maintain the style of the reference image but modify it according to: ${prompt}.`;
+  
+  const sanitizedPrompt = sanitizeInput(prompt, 800);
 
   const imageParts = images.map(img => ({
     inlineData: { data: img.data, mimeType: img.mimeType }
@@ -69,9 +71,15 @@ export async function generateCoherentImage(images: ImageData[], prompt: string)
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: CONFIG.MODELS.IMAGE,
       contents: {
-        parts: [...imageParts, { text: instruction }]
+        parts: [...imageParts, { text: sanitizedPrompt }]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "1:1",
+          imageSize: "1K"
+        }
       }
     });
 
@@ -80,10 +88,12 @@ export async function generateCoherentImage(images: ImageData[], prompt: string)
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-    
     return null;
   } catch (error) {
-    console.error("Error generating image:", error);
+    console.error("[Security] Request failed at generation layer");
+    if (error instanceof Error && error.message.includes("Requested entity was not found")) {
+      throw new Error("API_KEY_ERROR");
+    }
     throw error;
   }
 }
