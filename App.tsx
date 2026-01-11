@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppStep, GeneratedImage, PromptSuggestion } from './types';
+import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
 import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
@@ -9,31 +9,38 @@ import Header from './components/Header';
 import Loader from './components/Loader';
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<AppStep>('upload');
-  const [referenceImage, setReferenceImage] = useState<{data: string, mimeType: string} | null>(null);
+  const [step, setStep] = useState<AppStep>('mode_selection');
+  const [projectMode, setProjectMode] = useState<ProjectMode>('single');
+  const [referenceImages, setReferenceImages] = useState<ImageData[]>([]);
   const [themes, setThemes] = useState<string[]>(['']);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
 
+  const handleModeSelection = (mode: ProjectMode) => {
+    setProjectMode(mode);
+    setReferenceImages([]);
+    setStep('upload');
+  };
+
   const handleImageUpload = (base64: string, mimeType: string) => {
-    setReferenceImage({ data: base64, mimeType });
-    setStep('themes');
-  };
-
-  const addThemeField = () => {
-    setThemes([...themes, '']);
-  };
-
-  const removeThemeField = (index: number) => {
-    if (themes.length > 1) {
-      setThemes(themes.filter((_, i) => i !== index));
+    if (projectMode === 'single') {
+      setReferenceImages([{ data: base64, mimeType }]);
+      setStep('themes');
     } else {
-      setThemes(['']);
+      setReferenceImages(prev => [...prev, { data: base64, mimeType }].slice(0, 5));
     }
   };
 
+  const removeImage = (index: number) => {
+    setReferenceImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addThemeField = () => setThemes([...themes, '']);
+  const removeThemeField = (index: number) => {
+    setThemes(prev => prev.length > 1 ? prev.filter((_, i) => i !== index) : ['']);
+  };
   const updateThemeValue = (index: number, value: string) => {
     const newThemes = [...themes];
     newThemes[index] = value;
@@ -42,33 +49,33 @@ const App: React.FC = () => {
 
   const handleSuggestPrompts = async () => {
     const validThemes = themes.filter(t => t.trim() !== '');
-    if (!referenceImage || validThemes.length === 0) return;
+    if (referenceImages.length === 0 || validThemes.length === 0) return;
     
     setIsProcessing(true);
-    setLoadingMsg('Imagenius está processando suas ideias...');
+    setLoadingMsg('Imagenius está fundindo as referências e ideias...');
     
     try {
-      const result = await suggestPrompts(referenceImage.data, referenceImage.mimeType, validThemes);
+      const result = await suggestPrompts(referenceImages, validThemes);
       setSuggestions(result.map((text, idx) => ({ id: idx, text })));
       setStep('prompts');
     } catch (error) {
       console.error(error);
-      alert("Houve um pequeno erro ao processar. Tente novamente.");
+      alert("Houve um erro ao processar o gênio. Tente novamente.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleGenerateBatch = async (selectedPrompts: string[]) => {
-    if (!referenceImage || selectedPrompts.length === 0) return;
+    if (referenceImages.length === 0 || selectedPrompts.length === 0) return;
 
     setIsProcessing(true);
     const newResults: GeneratedImage[] = [];
     
     for (let i = 0; i < selectedPrompts.length; i++) {
-      setLoadingMsg(`Gerando obra ${i + 1} de ${selectedPrompts.length}...`);
+      setLoadingMsg(`Materializando obra ${i + 1} de ${selectedPrompts.length}...`);
       try {
-        const imageUrl = await generateCoherentImage(referenceImage.data, referenceImage.mimeType, selectedPrompts[i]);
+        const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i]);
         if (imageUrl) {
           newResults.push({
             id: (Date.now() + i).toString(),
@@ -86,17 +93,17 @@ const App: React.FC = () => {
       setGeneratedImages(prev => [...newResults, ...prev]);
       setStep('gallery');
     } else {
-      alert("Falha ao gerar as imagens. Tente ajustar seus temas.");
+      alert("Falha na materialização. Tente ajustar os parâmetros.");
     }
     
     setIsProcessing(false);
   };
 
   const resetApp = () => {
-    setReferenceImage(null);
+    setReferenceImages([]);
     setThemes(['']);
     setSuggestions([]);
-    setStep('upload');
+    setStep('mode_selection');
   };
 
   return (
@@ -108,13 +115,99 @@ const App: React.FC = () => {
 
         {!isProcessing && (
           <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 border border-slate-200 p-6 md:p-12 transition-all">
-            {step === 'upload' && (
-              <div className="space-y-10">
-                <div className="text-center max-w-lg mx-auto">
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-none">Visão <span className="text-indigo-600">Referencial</span></h2>
-                  <p className="text-slate-500 mt-4 text-lg font-medium">Envie a imagem que guiará o gênio criativo.</p>
+            
+            {step === 'mode_selection' && (
+              <div className="space-y-12 animate-in fade-in duration-500">
+                <div className="text-center max-w-2xl mx-auto">
+                  <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">Escolha seu <span className="text-indigo-600">Poder Criativo</span></h2>
+                  <p className="text-slate-500 mt-4 text-xl font-medium italic">"I'm a genius... and you are too."</p>
                 </div>
-                <ImageUploader onUpload={handleImageUpload} />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <button 
+                    onClick={() => handleModeSelection('single')}
+                    className="group relative p-8 rounded-[2.5rem] bg-slate-50 border-2 border-transparent hover:border-indigo-600 transition-all text-left hover:shadow-2xl hover:shadow-indigo-200"
+                  >
+                    <div className="w-16 h-16 bg-white rounded-3xl shadow-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <h3 className="text-2xl font-black text-slate-900 mb-2">Referência Única</h3>
+                    <p className="text-slate-500 font-medium">Foco total em manter a coerência de 1 imagem principal.</p>
+                  </button>
+
+                  <button 
+                    onClick={() => handleModeSelection('studio')}
+                    className="group relative p-8 rounded-[2.5rem] bg-slate-900 border-2 border-transparent hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-500/30"
+                  >
+                    <div className="w-16 h-16 bg-white/10 rounded-3xl shadow-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-2">Estúdio de Fusão</h3>
+                    <p className="text-slate-400 font-medium">Até 5 referências: 1 Estilo + 4 Fontes de Contexto.</p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 'upload' && (
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-5">
+                  <button onClick={() => setStep('mode_selection')} className="w-12 h-12 flex items-center justify-center hover:bg-slate-100 rounded-2xl transition-all border border-slate-100">
+                    <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
+                  </button>
+                  <div>
+                    <h2 className="text-3xl font-extrabold text-slate-900">
+                      {projectMode === 'single' ? 'Upload de Referência' : 'Configurar Estúdio'}
+                    </h2>
+                    <p className="text-slate-500 font-medium">
+                      {projectMode === 'single' ? 'Uma imagem para guiar o estilo.' : 'A primeira imagem é a âncora de estilo.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-8">
+                  {projectMode === 'studio' && referenceImages.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {referenceImages.map((img, idx) => (
+                        <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-slate-100 shadow-sm">
+                          <img src={`data:${img.mimeType};base64,${img.data}`} className="w-full h-full object-cover" />
+                          <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white text-[10px] font-black rounded-md backdrop-blur-sm">
+                            {idx === 0 ? 'ÂNCORA' : `ELEMENTO ${idx}`}
+                          </div>
+                          <button 
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                          </button>
+                        </div>
+                      ))}
+                      {referenceImages.length < 5 && (
+                        <div className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer" onClick={() => document.getElementById('file-upload-input')?.click()}>
+                           <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
+                           <span className="text-[10px] font-bold text-slate-400 mt-2">ADICIONAR</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <ImageUploader 
+                    onUpload={handleImageUpload} 
+                    label={projectMode === 'studio' && referenceImages.length > 0 ? "Adicionar Mais Referências" : "Clique para Enviar Referência Principal"} 
+                  />
+
+                  {referenceImages.length > 0 && (
+                    <div className="pt-6 flex justify-end">
+                      <button 
+                        onClick={() => setStep('themes')}
+                        className="bg-slate-900 hover:bg-indigo-600 text-white font-black py-4 px-10 rounded-2xl transition-all shadow-xl text-lg flex items-center gap-3"
+                      >
+                        Próxima Etapa: Ideias
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -126,61 +219,47 @@ const App: React.FC = () => {
                   </button>
                   <div>
                     <h2 className="text-3xl font-extrabold text-slate-900">Mapeamento de Ideias</h2>
-                    <p className="text-slate-500 font-medium">Cada ideia resultará em 2 variações inteligentes.</p>
+                    <p className="text-slate-500 font-medium">Cada ideia resultará em 2 variações fundindo suas referências.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
-                  {referenceImage && (
-                    <div className="md:col-span-4 lg:col-span-3">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Referência</p>
-                      <div className="relative group overflow-hidden rounded-3xl border-4 border-white shadow-xl rotate-[-1deg] transition-transform hover:rotate-0">
-                        <img src={`data:${referenceImage.mimeType};base64,${referenceImage.data}`} alt="Preview" className="w-full h-64 object-cover" />
-                      </div>
+                  <div className="md:col-span-4 lg:col-span-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Configuração</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {referenceImages.map((img, idx) => (
+                        <div key={idx} className={`relative rounded-xl overflow-hidden shadow-md border-2 ${idx === 0 ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-white'}`}>
+                           <img src={`data:${img.mimeType};base64,${img.data}`} className="w-full h-20 object-cover" />
+                           <div className="absolute inset-0 bg-black/20"></div>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
                   
                   <div className="md:col-span-8 lg:col-span-9 space-y-6">
-                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                       <span className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></span>
-                       Insira suas ideias:
-                    </p>
                     <div className="space-y-3">
                       {themes.map((theme, idx) => (
-                        <div key={idx} className="flex gap-3 group animate-in slide-in-from-left-4 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
+                        <div key={idx} className="flex gap-3 group animate-in slide-in-from-left-4 duration-300">
                           <input
                             type="text"
                             value={theme}
                             onChange={(e) => updateThemeValue(idx, e.target.value)}
-                            placeholder={`Explorar ideia ${idx + 1}...`}
-                            className="flex-grow p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-black font-bold placeholder:text-slate-400"
+                            placeholder={`Ideia ${idx + 1}...`}
+                            className="flex-grow p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-black font-bold"
                           />
-                          <button
-                            onClick={() => removeThemeField(idx)}
-                            className="p-4 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all group-hover:text-slate-500"
-                            title="Descartar"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          <button onClick={() => removeThemeField(idx)} className="p-4 text-slate-300 hover:text-red-500 rounded-2xl transition-all">
+                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                           </button>
                         </div>
                       ))}
                     </div>
-
-                    <button
-                      onClick={addThemeField}
-                      className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-extrabold text-sm px-4 py-2 bg-indigo-50 rounded-xl transition-all w-fit"
-                    >
+                    <button onClick={addThemeField} className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-extrabold text-sm px-4 py-2 bg-indigo-50 rounded-xl">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
-                      Nova Ideia
+                      Adicionar Ideia
                     </button>
-
                     <div className="pt-8 border-t border-slate-100">
-                      <button
-                        onClick={handleSuggestPrompts}
-                        disabled={themes.every(t => t.trim() === '')}
-                        className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 text-white font-black py-5 px-8 rounded-[1.5rem] transition-all shadow-xl active:scale-[0.98] text-lg uppercase tracking-tight"
-                      >
-                        Materializar Sugestões
+                      <button onClick={handleSuggestPrompts} disabled={themes.every(t => t.trim() === '')} className="w-full bg-slate-900 hover:bg-indigo-600 text-white font-black py-5 px-8 rounded-[1.5rem] transition-all shadow-xl text-lg uppercase">
+                        Sugerir Prompts Fundidos
                       </button>
                     </div>
                   </div>
@@ -194,29 +273,17 @@ const App: React.FC = () => {
                   <button onClick={() => setStep('themes')} className="w-12 h-12 flex items-center justify-center hover:bg-slate-100 rounded-2xl transition-all border border-slate-100">
                     <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
                   </button>
-                  <div>
-                    <h2 className="text-3xl font-extrabold text-slate-900">Refinamento Inteligente</h2>
-                    <p className="text-slate-500 font-medium">Selecione as direções que o Imagenius deve seguir.</p>
-                  </div>
+                  <h2 className="text-3xl font-extrabold text-slate-900">Refinamento Imagenius</h2>
                 </div>
                 <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} />
               </div>
             )}
 
             {step === 'gallery' && (
-              <div className="space-y-10">
+              <div className="space-y-10 animate-in zoom-in-95 duration-500">
                 <div className="flex justify-between items-end">
-                  <div>
-                    <h2 className="text-4xl font-black text-slate-900">Obras <span className="text-indigo-600">Finalizadas</span></h2>
-                    <p className="text-slate-500 font-medium">Resultados exclusivos com a essência da sua referência.</p>
-                  </div>
-                  <button 
-                    onClick={() => setStep('themes')}
-                    className="bg-slate-900 text-white hover:bg-indigo-600 px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-3 shadow-lg"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-                    Gerar Outras
-                  </button>
+                  <h2 className="text-4xl font-black text-slate-900">Obras <span className="text-indigo-600">Materializadas</span></h2>
+                  <button onClick={resetApp} className="bg-slate-900 text-white hover:bg-indigo-600 px-6 py-3 rounded-2xl font-bold transition-all shadow-lg">Novo Começo</button>
                 </div>
                 <Gallery images={generatedImages} />
               </div>
@@ -227,21 +294,11 @@ const App: React.FC = () => {
 
       <footer className="bg-white border-t border-slate-200 py-12 mt-12">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex items-center justify-center gap-3 mb-6">
-             <div className="relative w-8 h-8 flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg shadow-md rotate-3"></div>
-                <svg className="w-5 h-5 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C7.58 2 4 5.58 4 10C4 12.5 5.15 14.73 6.94 16.21C7.6 16.76 8 17.58 8 18.44V20C8 21.1 8.9 22 10 22H14C15.1 22 16 21.1 16 20V18.44C16 17.58 16.4 16.76 17.06 16.21C18.85 14.73 20 12.5 20 10C20 5.58 16.42 2 12 2Z"/>
-                </svg>
-             </div>
-             <span className="font-black text-xl tracking-tighter">
-                <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Ima</span>
-                <span className="text-slate-900">genius</span>
-             </span>
-          </div>
-          <p className="text-slate-400 text-sm font-semibold tracking-wide">
-            ESTÚDIO DE COERÊNCIA VISUAL • GOOGLE GEMINI AI • {new Date().getFullYear()}
-          </p>
+          <span className="font-black text-xl tracking-tighter">
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Ima</span>
+            <span className="text-slate-900">genius</span>
+          </span>
+          <p className="text-slate-400 text-sm font-semibold mt-2">ESTÚDIO DE COERÊNCIA VISUAL • {new Date().getFullYear()}</p>
         </div>
       </footer>
     </div>

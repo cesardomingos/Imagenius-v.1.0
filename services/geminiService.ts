@@ -1,27 +1,35 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { ImageData } from "../types";
 
 /**
- * Suggests multiple prompts based on a reference image and a list of user themes.
- * Now generates 2 prompts per theme.
+ * Sugere prompts baseados em uma ou mais imagens de referência.
  */
-export async function suggestPrompts(imageData: string, mimeType: string, themes: string[]): Promise<string[]> {
+export async function suggestPrompts(images: ImageData[], themes: string[]): Promise<string[]> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const themesString = themes.join(", ");
-  const prompt = `Based on the attached reference image and these specific theme ideas: [${themesString}], 
-  generate exactly 2 unique and detailed image generation prompts in English FOR EACH of the provided ideas. 
-  Each prompt should explore a variation of the specific idea while maintaining the visual style, character, or core mood of the original image.
-  Return the output as a flat JSON array of strings.`;
+  const isMulti = images.length > 1;
+
+  const systemPrompt = isMulti 
+    ? `You are an AI Image Specialist. I've provided ${images.length} images. 
+       The FIRST image is the PRIMARY style/character reference. 
+       The OTHERS are CONTEXT/ELEMENT references (objects, backgrounds, colors).
+       Based on these ideas: [${themesString}], generate exactly 2 detailed prompts per idea that integrate elements from the context images into the primary style.
+       Return a flat JSON array of strings.`
+    : `Based on the provided reference image and these themes: [${themesString}], 
+       generate exactly 2 unique prompts per idea that maintain visual style.
+       Return a flat JSON array of strings.`;
+
+  const imageParts = images.map(img => ({
+    inlineData: { data: img.data, mimeType: img.mimeType }
+  }));
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
-        parts: [
-          { inlineData: { data: imageData, mimeType } },
-          { text: prompt }
-        ]
+        parts: [...imageParts, { text: systemPrompt }]
       },
       config: {
         responseMimeType: "application/json",
@@ -32,31 +40,38 @@ export async function suggestPrompts(imageData: string, mimeType: string, themes
       }
     });
 
-    const result = JSON.parse(response.text || "[]");
-    return result;
+    return JSON.parse(response.text || "[]");
   } catch (error) {
     console.error("Error suggesting prompts:", error);
     return themes.flatMap(t => [
-      `A high-quality variation of the reference image incorporating ${t}`,
-      `A cinematic artistic reimagining focusing on ${t}`
+      `A coherent variation integrating provided references for ${t}`,
+      `A cinematic expansion of the primary style focusing on ${t}`
     ]);
   }
 }
 
 /**
- * Generates a new image based on a reference image and a chosen prompt.
+ * Gera a imagem final com coerência multi-referencial.
  */
-export async function generateCoherentImage(referenceImageData: string, mimeType: string, prompt: string): Promise<string | null> {
+export async function generateCoherentImage(images: ImageData[], prompt: string): Promise<string | null> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const isMulti = images.length > 1;
+
+  const instruction = isMulti
+    ? `PRIMARY STYLE: Image 1. CONTEXT ELEMENTS: Images 2 to ${images.length}. 
+       Apply the following prompt to create a NEW image that merges these elements: ${prompt}. 
+       Ensure high resolution and perfect artistic coherence.`
+    : `Maintain the style of the reference image but modify it according to: ${prompt}.`;
+
+  const imageParts = images.map(img => ({
+    inlineData: { data: img.data, mimeType: img.mimeType }
+  }));
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [
-          { inlineData: { data: referenceImageData, mimeType } },
-          { text: `Maintain the style and core visual elements of the reference image but modify it according to this prompt: ${prompt}. Ensure high resolution and artistic coherence.` }
-        ]
+        parts: [...imageParts, { text: instruction }]
       }
     });
 

@@ -11,4 +11,11 @@ export interface PromptSuggestion {
   text: string;
 }
 
-export type AppStep = 'upload' | 'themes' | 'prompts' | 'gallery';
+export type AppStep = 'mode_selection' | 'upload' | 'themes' | 'prompts' | 'gallery';
+
+export type ProjectMode = 'single' | 'studio';
+
+export interface ImageData {
+  data: string;
+  mimeType: string;
+}

@@ -3,9 +3,10 @@ import React, { useRef } from 'react';
 
 interface ImageUploaderProps {
   onUpload: (base64: string, mimeType: string) => void;
+  label?: string;
 }
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload }) => {
+const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload, label = "Clique para enviar" }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -16,6 +17,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload }) => {
         const result = event.target?.result as string;
         const base64Data = result.split(',')[1];
         onUpload(base64Data, file.type);
+        // Limpar o input para permitir o mesmo arquivo se necessário
+        if (fileInputRef.current) fileInputRef.current.value = '';
       };
       reader.readAsDataURL(file);
     }
@@ -23,15 +26,18 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload }) => {
 
   return (
     <div className="flex flex-col items-center justify-center w-full">
-      <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-slate-300 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+      <label className="flex flex-col items-center justify-center w-full h-48 border-4 border-slate-200 border-dashed rounded-[2.5rem] cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-indigo-300 transition-all duration-300 group">
         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-          <svg className="w-12 h-12 mb-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-          </svg>
-          <p className="mb-2 text-sm text-slate-500"><span className="font-semibold">Clique para enviar</span> ou arraste e solte</p>
-          <p className="text-xs text-slate-400">PNG, JPG ou JPEG (Máx. 10MB)</p>
+          <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <svg className="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <p className="mb-2 text-sm text-slate-600 font-bold">{label}</p>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">PNG, JPG ou JPEG</p>
         </div>
         <input 
+          id="file-upload-input"
           ref={fileInputRef}
           type="file" 
           className="hidden" 
