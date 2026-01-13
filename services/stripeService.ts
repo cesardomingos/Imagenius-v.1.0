@@ -5,10 +5,12 @@ import { getCurrentUser } from './supabaseService';
 import { createClient } from '@supabase/supabase-js';
 
 // Mapeamento de planos para valores em centavos (BRL)
+// Nota: O Stripe trabalha com valores em centavos (menor unidade da moeda)
+// Exemplo: 6990 centavos = R$ 69,90
 const PLAN_PRICES: Record<string, number> = {
-  'starter': 1990,   // R$ 19,90
-  'genius': 6990,   // R$ 69,90
-  'master': 14990,  // R$ 149,90
+  'starter': 1990,   // R$ 19,90 (1990 centavos)
+  'genius': 6990,   // R$ 69,90 (6990 centavos)
+  'master': 14990,  // R$ 149,90 (14990 centavos)
 };
 
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -51,7 +53,7 @@ async function createCheckoutSession(
         throw new Error('Usuário não autenticado');
       }
 
-      // Obter token de acesso do Supabase
+      // Obter token de acesso do Supabase usando o cliente compartilhado
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
@@ -59,11 +61,72 @@ async function createCheckoutSession(
         throw new Error('Supabase não configurado');
       }
 
-      const supabase = createClient(supabaseUrl, supabaseAnonKey);
-      const { data: { session } } = await supabase.auth.getSession();
+      // Criar cliente Supabase (deve usar a mesma instância/configuração)
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: false
+        }
+      });
       
-      if (!session) {
-        throw new Error('Sessão não encontrada');
+      // Obter usuário primeiro para garantir que o token está válido
+      // Isso força um refresh do token se necessário
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Erro ao obter usuário:', userError);
+        throw new Error(`Erro de autenticação: ${userError.message}. Faça login novamente.`);
+      }
+      
+      if (!authUser) {
+        throw new Error('Usuário não autenticado. Faça login novamente.');
+      }
+      
+      // Obter sessão após validar usuário (garante token atualizado)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        throw new Error('Erro ao obter sessão de autenticação');
+      }
+      
+      if (!session || !session.access_token) {
+        throw new Error('Sessão não encontrada. Faça login novamente.');
+      }
+      
+      // Verificar se o token não está expirado (opcional, mas útil para debug)
+      const tokenExpiry = session.expires_at ? new Date(session.expires_at * 1000) : null;
+      if (tokenExpiry && tokenExpiry < new Date()) {
+        console.warn('Token expirado, tentando refresh...');
+        // O Supabase deve fazer refresh automaticamente, mas vamos forçar
+        const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+        if (!refreshedSession || !refreshedSession.access_token) {
+          throw new Error('Token expirado. Faça login novamente.');
+        }
+        // Usar o token atualizado
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${refreshedSession.access_token}`,
+            'apikey': supabaseAnonKey,
+          },
+          body: JSON.stringify({
+            plan_id: plan.id,
+            amount: PLAN_PRICES[plan.id] || 0,
+            currency: 'brl',
+            user_id: userId,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: response.statusText }));
+          throw new Error(errorData.error || errorData.message || `Erro ao criar sessão: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return { sessionId: data.sessionId, url: data.url };
       }
 
       const response = await fetch(edgeFunctionUrl, {
@@ -71,6 +134,7 @@ async function createCheckoutSession(
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': supabaseAnonKey, // Adicionar apikey para Edge Functions
         },
         body: JSON.stringify({
           plan_id: plan.id,
@@ -81,7 +145,8 @@ async function createCheckoutSession(
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ao criar sessão: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.error || errorData.message || `Erro ao criar sessão: ${response.statusText}`);
       }
 
       const data = await response.json();

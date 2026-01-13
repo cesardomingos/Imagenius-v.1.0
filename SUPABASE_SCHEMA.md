@@ -163,9 +163,12 @@ serve(async (req) => {
   try {
     // Verificar autenticação
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const apikey = req.headers.get("apikey");
+    
+    // Edge Functions do Supabase podem usar apikey ou Authorization
+    if (!authHeader && !apikey) {
       return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
+        JSON.stringify({ error: "Não autorizado - Token de autenticação não fornecido" }),
         { 
           status: 401, 
           headers: { 
@@ -176,21 +179,79 @@ serve(async (req) => {
       );
     }
 
-    // Cliente Supabase para autenticação do usuário
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
+    // Validar token JWT diretamente usando Supabase
+    // O token vem no formato: "Bearer <jwt_token>"
+    let user = null;
+    
+    if (authHeader) {
+      // Extrair o token do header Authorization
+      const token = authHeader.replace("Bearer ", "");
+      
+      if (!token) {
+        return new Response(
+          JSON.stringify({ error: "Token não fornecido no header Authorization" }),
+          { 
+            status: 401, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
       }
-    );
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
+      // Criar cliente Supabase com o token
+      const supabaseAuth = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        {
+          global: {
+            headers: {
+              Authorization: authHeader,
+              apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+            },
+          },
+        }
+      );
+
+      // Validar o token e obter o usuário
+      const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
+      
+      if (authError) {
+        console.error("Erro de autenticação:", authError);
+        return new Response(
+          JSON.stringify({ 
+            error: `Erro de autenticação: ${authError.message}`,
+            details: authError.status ? `Status: ${authError.status}` : undefined
+          }),
+          { 
+            status: 401, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+      
+      if (!authUser) {
+        return new Response(
+          JSON.stringify({ error: "Usuário não encontrado no token" }),
+          { 
+            status: 401, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+      
+      user = authUser;
+    } else if (!apikey) {
+      // Se não tiver nem Authorization nem apikey, negar acesso
       return new Response(
-        JSON.stringify({ error: "Usuário não autenticado" }),
+        JSON.stringify({ error: "Autenticação necessária" }),
         { 
           status: 401, 
           headers: { 
@@ -202,7 +263,39 @@ serve(async (req) => {
     }
 
     // Obter dados do plano
-    const { plan_id, amount, currency, user_id } = await req.json();
+    const body = await req.json();
+    const { plan_id, amount, currency, user_id } = body;
+    
+    // Validar que user_id corresponde ao usuário autenticado
+    if (user && user_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "user_id não corresponde ao usuário autenticado" }),
+        { 
+          status: 403, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
+    
+    // Se não tiver usuário autenticado mas tiver user_id no body, usar ele
+    // (caso esteja usando apikey para autenticação)
+    const finalUserId = user ? user.id : user_id;
+    
+    if (!finalUserId) {
+      return new Response(
+        JSON.stringify({ error: "user_id é obrigatório" }),
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
     
     if (!plan_id || !PLAN_CREDITS[plan_id]) {
       return new Response(
@@ -235,11 +328,11 @@ serve(async (req) => {
       mode: "payment",
       success_url: `${Deno.env.get("SITE_URL") || "http://localhost:3000"}?checkout=success`,
       cancel_url: `${Deno.env.get("SITE_URL") || "http://localhost:3000"}?checkout=cancel`,
-      client_reference_id: user_id,
+      client_reference_id: finalUserId,
       metadata: {
         plan_id,
         credits: PLAN_CREDITS[plan_id].toString(),
-        user_id,
+        user_id: finalUserId,
       },
     });
 
@@ -249,11 +342,14 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Usa service_role para bypass RLS
     );
 
+    // amount vem em centavos (ex: 6990 = R$ 69,90)
+    const amountInCents = amount || PLAN_PRICES[plan_id];
+    
     await supabaseAdmin.from("transactions").insert({
-      user_id,
+      user_id: finalUserId,
       stripe_session_id: session.id,
       plan_id,
-      amount_total: amount || PLAN_PRICES[plan_id],
+      amount_total: amountInCents,
       currency: currency || "brl",
       status: "pending",
     });
