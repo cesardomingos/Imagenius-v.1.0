@@ -165,6 +165,14 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     const apikey = req.headers.get("apikey");
     
+    // Log para debug (remover em produção se necessário)
+    console.log("Headers recebidos:", {
+      hasAuthHeader: !!authHeader,
+      hasApikey: !!apikey,
+      authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + "..." : null,
+      method: req.method
+    });
+    
     // Edge Functions do Supabase podem usar apikey ou Authorization
     if (!authHeader && !apikey) {
       return new Response(
@@ -179,17 +187,15 @@ serve(async (req) => {
       );
     }
 
-    // Validar token JWT diretamente usando Supabase
+    // Validar token JWT usando Supabase
     // O token vem no formato: "Bearer <jwt_token>"
     let user = null;
     
     if (authHeader) {
-      // Extrair o token do header Authorization
-      const token = authHeader.replace("Bearer ", "");
-      
-      if (!token) {
+      // Verificar se o header tem o formato correto
+      if (!authHeader.startsWith("Bearer ")) {
         return new Response(
-          JSON.stringify({ error: "Token não fornecido no header Authorization" }),
+          JSON.stringify({ error: "Formato de Authorization header inválido. Deve ser: Bearer <token>" }),
           { 
             status: 401, 
             headers: { 
@@ -200,29 +206,84 @@ serve(async (req) => {
         );
       }
 
+      // Obter SUPABASE_URL e SUPABASE_ANON_KEY das variáveis de ambiente
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error("SUPABASE_URL ou SUPABASE_ANON_KEY não configurados");
+        return new Response(
+          JSON.stringify({ error: "Configuração do Supabase incompleta" }),
+          { 
+            status: 500, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+
       // Criar cliente Supabase com o token
+      // IMPORTANTE: Usar o apikey do header se fornecido, senão usar da env var
+      // O apikey do header deve ser o mesmo que VITE_SUPABASE_ANON_KEY do frontend
+      const finalApikey = apikey || supabaseAnonKey;
+      
+      console.log("Criando cliente Supabase:", {
+        supabaseUrl: supabaseUrl ? "configurado" : "não configurado",
+        hasApikey: !!finalApikey,
+        apikeySource: apikey ? "header" : "env var"
+      });
+      
       const supabaseAuth = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        supabaseUrl,
+        finalApikey,
         {
           global: {
             headers: {
               Authorization: authHeader,
-              apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+              apikey: finalApikey,
             },
           },
         }
       );
 
       // Validar o token e obter o usuário
+      // IMPORTANTE: O getUser() valida o JWT token automaticamente
       const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
       
       if (authError) {
-        console.error("Erro de autenticação:", authError);
+        console.error("Erro de autenticação:", {
+          message: authError.message,
+          status: authError.status,
+          name: authError.name,
+          // Log adicional para debug
+          tokenPrefix: authHeader ? authHeader.substring(0, 30) + "..." : "não fornecido",
+          apikeyMatch: apikey === supabaseAnonKey ? "sim" : "não (pode ser o problema)"
+        });
+        
+        // Se o erro for "Invalid JWT", pode ser que o apikey não corresponde
+        if (authError.message.includes("JWT") || authError.message.includes("token")) {
+          return new Response(
+            JSON.stringify({ 
+              error: `Token inválido: ${authError.message}`,
+              hint: "Verifique se o apikey do header corresponde ao SUPABASE_ANON_KEY",
+              status: authError.status || 401
+            }),
+            { 
+              status: 401, 
+              headers: { 
+                "Content-Type": "application/json",
+                ...corsHeaders
+              } 
+            }
+          );
+        }
+        
         return new Response(
           JSON.stringify({ 
             error: `Erro de autenticação: ${authError.message}`,
-            details: authError.status ? `Status: ${authError.status}` : undefined
+            status: authError.status || 401
           }),
           { 
             status: 401, 
@@ -248,10 +309,11 @@ serve(async (req) => {
       }
       
       user = authUser;
+      console.log("Usuário autenticado:", user.id);
     } else if (!apikey) {
       // Se não tiver nem Authorization nem apikey, negar acesso
       return new Response(
-        JSON.stringify({ error: "Autenticação necessária" }),
+        JSON.stringify({ error: "Autenticação necessária. Forneça Authorization header ou apikey." }),
         { 
           status: 401, 
           headers: { 

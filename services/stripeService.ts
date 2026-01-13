@@ -4,6 +4,25 @@ import { PricingPlan } from "../types";
 import { getCurrentUser } from './supabaseService';
 import { createClient } from '@supabase/supabase-js';
 
+// Função helper para obter o cliente Supabase compartilhado
+// Isso garante que usamos a mesma instância que foi usada para autenticação
+function getSupabaseClient() {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase não configurado');
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false
+    }
+  });
+}
+
 // Mapeamento de planos para valores em centavos (BRL)
 // Nota: O Stripe trabalha com valores em centavos (menor unidade da moeda)
 // Exemplo: 6990 centavos = R$ 69,90
@@ -54,21 +73,14 @@ async function createCheckoutSession(
       }
 
       // Obter token de acesso do Supabase usando o cliente compartilhado
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      if (!supabaseUrl || !supabaseAnonKey) {
+      if (!supabaseAnonKey) {
         throw new Error('Supabase não configurado');
       }
 
-      // Criar cliente Supabase (deve usar a mesma instância/configuração)
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: false
-        }
-      });
+      // Usar cliente Supabase compartilhado (garante mesma sessão)
+      const supabase = getSupabaseClient();
       
       // Obter usuário primeiro para garantir que o token está válido
       // Isso força um refresh do token se necessário
@@ -129,6 +141,17 @@ async function createCheckoutSession(
         return { sessionId: data.sessionId, url: data.url };
       }
 
+      // Log para debug (apenas em desenvolvimento)
+      if (import.meta.env.DEV) {
+        console.log('Enviando requisição para Edge Function:', {
+          url: edgeFunctionUrl,
+          hasToken: !!session.access_token,
+          tokenLength: session.access_token?.length,
+          userId,
+          planId: plan.id
+        });
+      }
+
       const response = await fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
@@ -145,8 +168,20 @@ async function createCheckoutSession(
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.error || errorData.message || `Erro ao criar sessão: ${response.statusText}`);
+        // Tentar obter detalhes do erro
+        let errorMessage = `Erro ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          console.error('Erro da Edge Function:', errorData);
+        } catch (e) {
+          const text = await response.text().catch(() => '');
+          if (text) {
+            console.error('Resposta de erro (texto):', text);
+            errorMessage = text || errorMessage;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
