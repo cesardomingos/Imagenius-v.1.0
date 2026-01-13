@@ -145,14 +145,34 @@ const PLAN_PRICES: Record<string, number> = {
   'master': 14990,  // R$ 149,90 em centavos
 };
 
+// Headers CORS
+// Em produção, use uma URL específica ao invés de "*" para maior segurança
+const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN") || "*";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": allowedOrigin,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 serve(async (req) => {
+  // Tratar requisição OPTIONS (preflight)
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     // Verificar autenticação
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 401, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
@@ -171,7 +191,13 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 401, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
@@ -181,7 +207,13 @@ serve(async (req) => {
     if (!plan_id || !PLAN_CREDITS[plan_id]) {
       return new Response(
         JSON.stringify({ error: "Plano inválido" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { 
+          status: 400, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
       );
     }
 
@@ -228,12 +260,24 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ sessionId: session.id, url: session.url }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 200, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 500, 
+        headers: { 
+          "Content-Type": "application/json",
+          ...corsHeaders
+        } 
+      }
     );
   }
 });
@@ -259,8 +303,14 @@ serve(async (req) => {
       | `SUPABASE_URL` | `https://seu-projeto.supabase.co` | URL do seu projeto Supabase (geralmente já está disponível automaticamente) |
       | `SUPABASE_ANON_KEY` | `sua_chave_anon` | Chave anônima do Supabase (para autenticação do usuário) |
       | `SUPABASE_SERVICE_ROLE_KEY` | `sua_chave_service_role` | Chave de service role (obtenha em **Settings > API > service_role key**). Usada para criar transações, bypassando RLS |
+      | `ALLOWED_ORIGIN` | `https://imagenius-theta.vercel.app` (opcional) | URL do seu frontend para CORS. Se não configurado, usa `*` (menos seguro, mas funciona para desenvolvimento) |
    
    7. Clique em **Save** (Salvar) para cada variável
+   
+   **Nota sobre CORS:** 
+   - Para desenvolvimento, você pode deixar `ALLOWED_ORIGIN` sem configurar (usa `*`)
+   - Para produção, configure com a URL exata do seu frontend (ex: `https://imagenius-theta.vercel.app`)
+   - Isso aumenta a segurança, permitindo apenas requisições do seu domínio
    
    **Opção B: Via CLI do Supabase (Avançado)**
    
