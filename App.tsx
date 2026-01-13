@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
-import { fetchUserCredits, deductCredits, createPendingTransaction } from './services/supabaseService';
+import { fetchUserCredits, deductCredits, checkAndUpdateTransactionStatus } from './services/supabaseService';
 import { startStripeCheckout } from './services/stripeService';
 import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
@@ -11,6 +11,7 @@ import Header from './components/Header';
 import Loader from './components/Loader';
 import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
+import Toast, { ToastType } from './components/Toast';
 import { getCurrentUser, signOut } from './services/supabaseService';
 import { UserProfile } from './types';
 
@@ -33,6 +34,9 @@ const App: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
+  // Toast/Notification State
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+
   // Carrega usuário e créditos iniciais
   useEffect(() => {
     const loadUser = async () => {
@@ -42,6 +46,99 @@ const App: React.FC = () => {
       setCredits(currentCredits);
     };
     loadUser();
+  }, []);
+
+  // Detectar retorno do checkout do Stripe
+  useEffect(() => {
+    const handleCheckoutReturn = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const checkoutStatus = urlParams.get('checkout');
+
+      if (checkoutStatus === 'success') {
+        // Remover query param da URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        // Log para debug (modo desenvolvimento)
+        if (import.meta.env.DEV) {
+          console.log('✅ Checkout bem-sucedido! Verificando transação...');
+        }
+
+        // Verificar status da transação e atualizar créditos
+        setIsProcessing(true);
+        setLoadingMsg('Verificando pagamento...');
+
+        try {
+          // Polling: tentar verificar a transação várias vezes (webhook pode demorar)
+          let attempts = 0;
+          const maxAttempts = 5;
+          let transactionFound = false;
+
+          const checkTransaction = async (): Promise<void> => {
+            attempts++;
+            
+            // Aguardar antes de verificar (primeira tentativa espera 2s, depois 3s)
+            if (attempts > 1) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            const { updated, creditsAdded, transaction } = await checkAndUpdateTransactionStatus();
+
+            if (updated && creditsAdded) {
+              transactionFound = true;
+              // Atualizar créditos na UI
+              const newCredits = await fetchUserCredits();
+              setCredits(newCredits);
+              
+              setToast({
+                message: `Pagamento confirmado! ${creditsAdded} créditos adicionados ao seu Atelier.`,
+                type: 'success'
+              });
+              
+              setIsProcessing(false);
+              setIsStoreOpen(false);
+              return;
+            }
+
+            // Se ainda não encontrou e não excedeu tentativas, tentar novamente
+            if (!transactionFound && attempts < maxAttempts) {
+              setLoadingMsg(`Verificando pagamento... (${attempts}/${maxAttempts})`);
+              await checkTransaction();
+            } else if (!transactionFound) {
+              // Após todas as tentativas, informar que está sendo processado
+              setToast({
+                message: 'Pagamento processado! Seus créditos serão atualizados em breve. Se não aparecerem, atualize a página.',
+                type: 'info'
+              });
+              setIsProcessing(false);
+              setIsStoreOpen(false);
+            }
+          };
+
+          await checkTransaction();
+        } catch (error) {
+          console.error('Erro ao verificar pagamento:', error);
+          setToast({
+            message: 'Erro ao verificar pagamento. Verifique seus créditos em alguns instantes ou atualize a página.',
+            type: 'warning'
+          });
+          setIsProcessing(false);
+          setIsStoreOpen(false);
+        }
+      } else if (checkoutStatus === 'cancel') {
+        // Remover query param da URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        setToast({
+          message: 'Checkout cancelado. Você pode tentar novamente quando quiser.',
+          type: 'info'
+        });
+        setIsStoreOpen(false);
+      }
+    };
+
+    handleCheckoutReturn();
   }, []);
 
   const handleAuthSuccess = async (user: UserProfile) => {
@@ -155,10 +252,8 @@ const App: React.FC = () => {
     setLoadingMsg(`Conectando ao terminal de pagamento seguro...`);
     
     try {
-      // 1. Criar transação pendente no Supabase
-      await createPendingTransaction(plan.id, currentUser.id);
-      
-      // 2. Iniciar Checkout do Stripe (redireciona o usuário)
+      // Iniciar Checkout do Stripe (redireciona o usuário)
+      // A Edge Function criará a transação pendente usando service_role key
       await startStripeCheckout(plan, currentUser.id);
       
       // Nota: Após o pagamento bem-sucedido, o webhook do Stripe atualizará os créditos
@@ -205,6 +300,16 @@ const App: React.FC = () => {
             isOpen={isAuthOpen}
             onClose={() => setIsAuthOpen(false)}
             onAuthSuccess={handleAuthSuccess}
+          />
+        )}
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            isVisible={true}
+            onClose={() => setToast(null)}
+            duration={6000}
           />
         )}
 

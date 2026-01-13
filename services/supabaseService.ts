@@ -274,28 +274,149 @@ export async function deductCredits(amount: number): Promise<boolean> {
 }
 
 /**
- * Registra uma transação pendente antes de enviar ao Stripe.
+ * Nota: Criação de transações é feita apenas pela Edge Function usando service_role key
+ * Isso garante maior segurança, evitando que usuários maliciosos criem transações falsas
  */
-export async function createPendingTransaction(planId: string, userId: string, amount?: number) {
-  if (supabase) {
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: userId,
-          plan_id: planId,
-          status: 'pending',
-          amount_total: amount || 0,
-          currency: 'brl'
-        });
 
-      if (error) {
-        console.error('Erro ao criar transação:', error);
-      }
-    } catch (error) {
-      console.error('Erro ao criar transação:', error);
+/**
+ * Busca transações pendentes do usuário atual
+ */
+export async function getPendingTransactions(): Promise<any[]> {
+  const user = await getCurrentUser();
+  if (!user || !supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar transações pendentes:', error);
+      return [];
     }
-  } else {
-    console.log(`Registrando intenção de compra do plano ${planId} para o usuário ${userId}`);
+
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar transações pendentes:', error);
+    return [];
+  }
+}
+
+/**
+ * Busca todas as transações do usuário (útil para debug)
+ */
+export async function getAllUserTransactions(): Promise<any[]> {
+  const user = await getCurrentUser();
+  if (!user || !supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('Erro ao buscar transações:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Erro ao buscar transações:', error);
+    return [];
+  }
+}
+
+/**
+ * Verifica se uma transação foi completada e atualiza créditos se necessário
+ * Retorna informações sobre a transação mais recente completada
+ */
+export async function checkAndUpdateTransactionStatus(): Promise<{ updated: boolean; creditsAdded?: number; transaction?: any }> {
+  const user = await getCurrentUser();
+  if (!user || !supabase) {
+    return { updated: false };
+  }
+
+  try {
+    // Buscar transações completadas recentemente (últimas 10 minutos)
+    // Isso cobre o caso onde o usuário retorna do checkout
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: recentCompleted, error: completedError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .gte('created_at', tenMinutesAgo)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (completedError) {
+      console.error('Erro ao buscar transações completadas:', completedError);
+      return { updated: false };
+    }
+
+    // Se encontrou transação completada recentemente
+    if (recentCompleted && recentCompleted.length > 0) {
+      const transaction = recentCompleted[0];
+      const planCredits: Record<string, number> = {
+        'starter': 20,
+        'genius': 100,
+        'master': 300,
+      };
+      const creditsToAdd = planCredits[transaction.plan_id] || 0;
+      
+      // Verificar se os créditos já foram adicionados (comparar com créditos atuais)
+      const currentCredits = await fetchUserCredits();
+      
+      // Buscar perfil atual do banco para verificar se precisa atualizar
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+
+      const dbCredits = profile?.credits || 0;
+      
+      // Se os créditos no banco já refletem a transação, não precisa atualizar
+      // Mas vamos garantir que a UI está sincronizada
+      if (dbCredits !== currentCredits) {
+        // Atualizar cache local
+        localStorage.setItem('genius_credits', dbCredits.toString());
+        return { updated: true, creditsAdded: creditsToAdd, transaction };
+      }
+      
+      // Se os créditos já estão atualizados, retornar sucesso mesmo assim
+      // para mostrar a notificação ao usuário
+      return { updated: true, creditsAdded: creditsToAdd, transaction };
+    }
+
+    // Se não encontrou transação completada, verificar se há transações pendentes
+    // que podem estar sendo processadas
+    const { data: pendingTransactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (pendingTransactions && pendingTransactions.length > 0) {
+      // Há transação pendente - pode estar sendo processada pelo webhook
+      return { updated: false };
+    }
+
+    return { updated: false };
+  } catch (error) {
+    console.error('Erro ao verificar status da transação:', error);
+    return { updated: false };
   }
 }

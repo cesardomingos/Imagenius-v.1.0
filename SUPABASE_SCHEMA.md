@@ -63,6 +63,9 @@ ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Usuários podem ver suas transações" ON public.transactions
   FOR SELECT USING (auth.uid() = user_id);
+
+-- Nota: INSERT e UPDATE são feitos apenas via Edge Functions usando service_role key (que bypassa RLS)
+-- Isso garante que apenas o backend pode criar/atualizar transações, aumentando a segurança
 ```
 
 ## 3. Configuração do Cliente Supabase no Frontend
@@ -153,7 +156,8 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
+    // Cliente Supabase para autenticação do usuário
+    const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
@@ -163,7 +167,7 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
@@ -207,8 +211,13 @@ serve(async (req) => {
       },
     });
 
-    // Criar transação pendente no Supabase
-    await supabase.from("transactions").insert({
+    // Criar transação pendente no Supabase usando service_role key (bypassa RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Usa service_role para bypass RLS
+    );
+
+    await supabaseAdmin.from("transactions").insert({
       user_id,
       stripe_session_id: session.id,
       plan_id,
@@ -248,7 +257,8 @@ serve(async (req) => {
       | `STRIPE_SECRET_KEY` | `sk_test_...` ou `sk_live_...` | Chave secreta do Stripe (obtenha em [Stripe Dashboard > Developers > API keys](https://dashboard.stripe.com/apikeys)) |
       | `SITE_URL` | `https://seu-site.com` ou `http://localhost:3000` | URL do seu site para redirecionamento após checkout |
       | `SUPABASE_URL` | `https://seu-projeto.supabase.co` | URL do seu projeto Supabase (geralmente já está disponível automaticamente) |
-      | `SUPABASE_ANON_KEY` | `sua_chave_anon` | Chave anônima do Supabase (geralmente já está disponível automaticamente) |
+      | `SUPABASE_ANON_KEY` | `sua_chave_anon` | Chave anônima do Supabase (para autenticação do usuário) |
+      | `SUPABASE_SERVICE_ROLE_KEY` | `sua_chave_service_role` | Chave de service role (obtenha em **Settings > API > service_role key**). Usada para criar transações, bypassando RLS |
    
    7. Clique em **Save** (Salvar) para cada variável
    
@@ -269,9 +279,10 @@ serve(async (req) => {
    # Configurar variáveis de ambiente
    supabase secrets set STRIPE_SECRET_KEY=sk_test_sua_chave_aqui
    supabase secrets set SITE_URL=https://seu-site.com
+   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role_aqui
    ```
    
-   **Nota:** As variáveis `SUPABASE_URL` e `SUPABASE_ANON_KEY` geralmente já estão disponíveis automaticamente nas Edge Functions, mas você pode adicioná-las manualmente se necessário.
+   **Nota:** As variáveis `SUPABASE_URL` e `SUPABASE_ANON_KEY` geralmente já estão disponíveis automaticamente nas Edge Functions, mas você pode adicioná-las manualmente se necessário. A `SUPABASE_SERVICE_ROLE_KEY` é necessária para criar transações bypassando RLS.
    
    **Importante:** 
    - Use `sk_test_...` para ambiente de desenvolvimento/teste
