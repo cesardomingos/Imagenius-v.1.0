@@ -1,12 +1,15 @@
 
-import React, { useState } from 'react';
-import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData } from './types';
+import React, { useState, useEffect } from 'react';
+import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
+import { fetchUserCredits, deductCredits, createPendingTransaction } from './services/supabaseService';
+import { startStripeCheckout } from './services/stripeService';
 import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
 import Gallery from './components/Gallery';
 import Header from './components/Header';
 import Loader from './components/Loader';
+import PricingModal from './components/PricingModal';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('mode_selection');
@@ -18,6 +21,19 @@ const App: React.FC = () => {
   const [batchStatus, setBatchStatus] = useState<{ total: number; current: number } | null>(null);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
+  
+  // Credit System State
+  const [credits, setCredits] = useState<number>(0);
+  const [isStoreOpen, setIsStoreOpen] = useState(false);
+
+  // Carrega créditos iniciais do Supabase (mock)
+  useEffect(() => {
+    const loadCredits = async () => {
+      const currentCredits = await fetchUserCredits();
+      setCredits(currentCredits);
+    };
+    loadCredits();
+  }, []);
 
   const handleModeSelection = (mode: ProjectMode) => {
     setProjectMode(mode);
@@ -61,12 +77,7 @@ const App: React.FC = () => {
       setStep('prompts');
     } catch (error) {
       console.error(error);
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-      if (errorMessage.includes("GEMINI_API_KEY")) {
-        alert(errorMessage);
-      } else {
-        alert("Houve um erro ao processar o gênio. Tente novamente.\n\n" + errorMessage);
-      }
+      alert("Houve um erro no processo criativo. Tente novamente.");
     } finally {
       setIsProcessing(false);
     }
@@ -75,105 +86,66 @@ const App: React.FC = () => {
   const handleGenerateBatch = async (selectedPrompts: string[]) => {
     if (referenceImages.length === 0 || selectedPrompts.length === 0) return;
 
+    // Credit Check and Deduction (Logic moved to service)
+    const canProceed = credits >= selectedPrompts.length;
+    if (!canProceed) {
+      setIsStoreOpen(true);
+      return;
+    }
+
     setStep('gallery');
     setBatchStatus({ total: selectedPrompts.length, current: 0 });
     
-    // Delay entre requisições para evitar rate limiting (em milissegundos)
-    // Aumentado para 5 segundos devido a limitações do free tier
-    const DELAY_BETWEEN_REQUESTS = 5000; // 5 segundos entre cada requisição
-    
     for (let i = 0; i < selectedPrompts.length; i++) {
       setBatchStatus(prev => prev ? { ...prev, current: i + 1 } : null);
-      
       try {
         const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i]);
         if (imageUrl) {
-          const newImg: GeneratedImage = {
-            id: (Date.now() + i).toString(),
-            url: imageUrl,
-            prompt: selectedPrompts[i],
-            timestamp: Date.now()
-          };
-          setGeneratedImages(prev => [newImg, ...prev]);
-        }
-      } catch (error: any) {
-        console.error(`Erro na geração ${i + 1}:`, error);
-        
-        const errorObj = error?.error || error;
-        const errorMessage = errorObj?.message || error?.message || (error instanceof Error ? error.message : "Erro desconhecido");
-        const isQuotaError = errorObj?.code === 429 || 
-                            errorObj?.status === 'RESOURCE_EXHAUSTED' ||
-                            errorMessage.includes("429") || 
-                            errorMessage.toLowerCase().includes("quota") ||
-                            errorMessage.toLowerCase().includes("rate limit");
-        
-        if (errorMessage.includes("GEMINI_API_KEY")) {
-          alert(errorMessage);
-          break; // Para o loop se for erro de API key
-        } else if (isQuotaError) {
-          // Extrai o tempo de retry sugerido pela API
-          let waitTime = 40000; // Default: 40 segundos
-          
-          try {
-            const errorDetails = errorObj?.details || error?.details || [];
-            const retryInfo = errorDetails.find((detail: any) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo');
-            
-            if (retryInfo?.retryDelay) {
-              const retryDelayStr = retryInfo.retryDelay;
-              const seconds = parseFloat(retryDelayStr.replace(/[^\d.]/g, ''));
-              if (!isNaN(seconds)) {
-                waitTime = Math.ceil(seconds * 1000 * 1.1); // Buffer de 10%
-              }
-            } else if (errorMessage) {
-              const retryMatch = errorMessage.match(/retry in ([\d.]+)s/i);
-              if (retryMatch) {
-                const seconds = parseFloat(retryMatch[1]);
-                if (!isNaN(seconds)) {
-                  waitTime = Math.ceil(seconds * 1000 * 1.1);
-                }
-              }
-            }
-          } catch (parseError) {
-            console.warn('Erro ao extrair tempo de retry:', parseError);
+          const success = await deductCredits(1);
+          if (success) {
+            const newImg: GeneratedImage = {
+              id: (Date.now() + i).toString(),
+              url: imageUrl,
+              prompt: selectedPrompts[i],
+              timestamp: Date.now()
+            };
+            setGeneratedImages(prev => [newImg, ...prev]);
+            setCredits(prev => prev - 1);
           }
-          
-          const waitSeconds = Math.ceil(waitTime / 1000);
-          setLoadingMsg(`Cota excedida. Aguardando ${waitSeconds}s antes de continuar...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
-          setLoadingMsg('');
-          
-          // Tenta novamente esta imagem após o wait
-          try {
-            const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i]);
-            if (imageUrl) {
-              const newImg: GeneratedImage = {
-                id: (Date.now() + i).toString(),
-                url: imageUrl,
-                prompt: selectedPrompts[i],
-                timestamp: Date.now()
-              };
-              setGeneratedImages(prev => [newImg, ...prev]);
-            }
-          } catch (retryError) {
-            console.error(`Erro ao tentar novamente após wait:`, retryError);
-            setLoadingMsg(`Não foi possível gerar a imagem ${i + 1}. Pulando...`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setLoadingMsg('');
-          }
-        } else {
-          // Para outros erros, continua com a próxima imagem
-          console.warn(`Pulando imagem ${i + 1} devido a erro:`, errorMessage);
         }
-      }
-      
-      // Aguarda antes da próxima requisição (exceto na última)
-      if (i < selectedPrompts.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
+      } catch (error) {
+        console.error(`Erro na geração ${i}:`, error);
       }
     }
 
     setBatchStatus(null);
-    setLoadingMsg('');
+  };
+
+  const handlePurchase = async (plan: PricingPlan) => {
+    setIsProcessing(true);
+    setLoadingMsg(`Conectando ao terminal de pagamento seguro...`);
+    
+    try {
+      // 1. Criar transação pendente no Supabase
+      await createPendingTransaction(plan.id, "current-user-uuid");
+      
+      // 2. Iniciar Checkout do Stripe
+      await startStripeCheckout(plan);
+      
+      // Simulação de retorno de sucesso do Webhook do Stripe (apenas para o mock)
+      setTimeout(() => {
+        setCredits(prev => prev + plan.credits);
+        localStorage.setItem('genius_credits', (credits + plan.credits).toString());
+        setIsProcessing(false);
+        setIsStoreOpen(false);
+        alert(`Pagamento Confirmado! Adicionamos ${plan.credits} créditos ao seu Atelier.`);
+      }, 1000);
+
+    } catch (error) {
+      console.error("Erro no checkout:", error);
+      setIsProcessing(false);
+      alert("Falha ao iniciar pagamento. Tente novamente.");
+    }
   };
 
   const resetApp = () => {
@@ -185,9 +157,22 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fcfdff] text-slate-900 selection:bg-indigo-100">
-      <Header onReset={resetApp} hasImages={generatedImages.length > 0} goToGallery={() => setStep('gallery')} />
+      <Header 
+        onReset={resetApp} 
+        hasImages={generatedImages.length > 0} 
+        goToGallery={() => setStep('gallery')} 
+        credits={credits}
+        onOpenStore={() => setIsStoreOpen(true)}
+      />
       
       <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+        {isStoreOpen && (
+          <PricingModal 
+            onClose={() => setIsStoreOpen(false)} 
+            onSelectPlan={handlePurchase} 
+          />
+        )}
+
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (

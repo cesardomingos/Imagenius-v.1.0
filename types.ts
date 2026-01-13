@@ -19,3 +19,24 @@ export interface ImageData {
   data: string;
   mimeType: string;
 }
+
+export interface PricingPlan {
+  id: string;
+  name: string;
+  credits: number;
+  price: string;
+  popular?: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  credits: number;
+}
+
+export interface Transaction {
+  id: string;
+  status: 'pending' | 'completed' | 'failed';
+  plan_id: string;
+  created_at: number;
+}
