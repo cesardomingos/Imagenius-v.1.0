@@ -61,7 +61,12 @@ const App: React.FC = () => {
       setStep('prompts');
     } catch (error) {
       console.error(error);
-      alert("Houve um erro ao processar o gênio. Tente novamente.");
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      if (errorMessage.includes("GEMINI_API_KEY")) {
+        alert(errorMessage);
+      } else {
+        alert("Houve um erro ao processar o gênio. Tente novamente.\n\n" + errorMessage);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -74,8 +79,13 @@ const App: React.FC = () => {
     setStep('gallery');
     setBatchStatus({ total: selectedPrompts.length, current: 0 });
     
+    // Delay entre requisições para evitar rate limiting (em milissegundos)
+    // Aumentado para 5 segundos devido a limitações do free tier
+    const DELAY_BETWEEN_REQUESTS = 5000; // 5 segundos entre cada requisição
+    
     for (let i = 0; i < selectedPrompts.length; i++) {
       setBatchStatus(prev => prev ? { ...prev, current: i + 1 } : null);
+      
       try {
         const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i]);
         if (imageUrl) {
@@ -87,12 +97,84 @@ const App: React.FC = () => {
           };
           setGeneratedImages(prev => [newImg, ...prev]);
         }
-      } catch (error) {
-        console.error(`Erro na geração ${i}:`, error);
+      } catch (error: any) {
+        console.error(`Erro na geração ${i + 1}:`, error);
+        
+        const errorObj = error?.error || error;
+        const errorMessage = errorObj?.message || error?.message || (error instanceof Error ? error.message : "Erro desconhecido");
+        const isQuotaError = errorObj?.code === 429 || 
+                            errorObj?.status === 'RESOURCE_EXHAUSTED' ||
+                            errorMessage.includes("429") || 
+                            errorMessage.toLowerCase().includes("quota") ||
+                            errorMessage.toLowerCase().includes("rate limit");
+        
+        if (errorMessage.includes("GEMINI_API_KEY")) {
+          alert(errorMessage);
+          break; // Para o loop se for erro de API key
+        } else if (isQuotaError) {
+          // Extrai o tempo de retry sugerido pela API
+          let waitTime = 40000; // Default: 40 segundos
+          
+          try {
+            const errorDetails = errorObj?.details || error?.details || [];
+            const retryInfo = errorDetails.find((detail: any) => detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo');
+            
+            if (retryInfo?.retryDelay) {
+              const retryDelayStr = retryInfo.retryDelay;
+              const seconds = parseFloat(retryDelayStr.replace(/[^\d.]/g, ''));
+              if (!isNaN(seconds)) {
+                waitTime = Math.ceil(seconds * 1000 * 1.1); // Buffer de 10%
+              }
+            } else if (errorMessage) {
+              const retryMatch = errorMessage.match(/retry in ([\d.]+)s/i);
+              if (retryMatch) {
+                const seconds = parseFloat(retryMatch[1]);
+                if (!isNaN(seconds)) {
+                  waitTime = Math.ceil(seconds * 1000 * 1.1);
+                }
+              }
+            }
+          } catch (parseError) {
+            console.warn('Erro ao extrair tempo de retry:', parseError);
+          }
+          
+          const waitSeconds = Math.ceil(waitTime / 1000);
+          setLoadingMsg(`Cota excedida. Aguardando ${waitSeconds}s antes de continuar...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          setLoadingMsg('');
+          
+          // Tenta novamente esta imagem após o wait
+          try {
+            const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i]);
+            if (imageUrl) {
+              const newImg: GeneratedImage = {
+                id: (Date.now() + i).toString(),
+                url: imageUrl,
+                prompt: selectedPrompts[i],
+                timestamp: Date.now()
+              };
+              setGeneratedImages(prev => [newImg, ...prev]);
+            }
+          } catch (retryError) {
+            console.error(`Erro ao tentar novamente após wait:`, retryError);
+            setLoadingMsg(`Não foi possível gerar a imagem ${i + 1}. Pulando...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            setLoadingMsg('');
+          }
+        } else {
+          // Para outros erros, continua com a próxima imagem
+          console.warn(`Pulando imagem ${i + 1} devido a erro:`, errorMessage);
+        }
+      }
+      
+      // Aguarda antes da próxima requisição (exceto na última)
+      if (i < selectedPrompts.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
       }
     }
 
     setBatchStatus(null);
+    setLoadingMsg('');
   };
 
   const resetApp = () => {

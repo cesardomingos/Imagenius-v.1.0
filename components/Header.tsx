@@ -1,5 +1,6 @@
 
 import React from 'react';
+import QuotaDisplay from './QuotaDisplay';
 
 interface HeaderProps {
   onReset: () => void;
@@ -33,6 +34,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery }) => {
         </div>
 
         <nav className="flex items-center gap-4">
+          <QuotaDisplay />
           {hasImages && (
             <button 
               onClick={goToGallery}
