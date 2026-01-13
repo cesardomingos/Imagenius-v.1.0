@@ -2,7 +2,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageData } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Obtém a API key do Gemini
+ */
+function getApiKey(): string {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "GEMINI_API_KEY não configurada. Por favor, crie um arquivo .env na raiz do projeto com:\n" +
+      "GEMINI_API_KEY=sua_chave_aqui\n\n" +
+      "Obtenha sua chave em: https://aistudio.google.com/apikey"
+    );
+  }
+  return apiKey;
+}
 
 /**
  * Sugere prompts baseados em uma ou mais imagens de referência usando o cérebro Pro.
@@ -23,6 +36,7 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
   }));
 
   try {
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
@@ -65,6 +79,7 @@ export async function generateCoherentImage(images: ImageData[], prompt: string)
   }));
 
   try {
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
