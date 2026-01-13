@@ -4,9 +4,11 @@ import { GeneratedImage } from '../types';
 
 interface GalleryProps {
   images: GeneratedImage[];
+  isBatching?: boolean;
+  pendingCount?: number;
 }
 
-const Gallery: React.FC<GalleryProps> = ({ images }) => {
+const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 }) => {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
 
   const downloadImage = (url: string, id: string) => {
@@ -18,7 +20,7 @@ const Gallery: React.FC<GalleryProps> = ({ images }) => {
     document.body.removeChild(link);
   };
 
-  if (images.length === 0) {
+  if (images.length === 0 && !isBatching) {
     return (
       <div className="text-center py-20">
         <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -34,12 +36,33 @@ const Gallery: React.FC<GalleryProps> = ({ images }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Progressive Loading Skeletons */}
+        {Array.from({ length: Math.max(0, pendingCount) }).map((_, i) => (
+          <div key={`pending-${i}`} className="relative bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 animate-pulse">
+            <div className="w-full h-72 bg-slate-200 flex items-center justify-center">
+                <div className="relative w-12 h-12">
+                    <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+                </div>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="h-2 w-20 bg-slate-200 rounded"></div>
+              <div className="h-4 w-full bg-slate-200 rounded"></div>
+              <div className="h-4 w-2/3 bg-slate-200 rounded"></div>
+            </div>
+          </div>
+        ))}
+
+        {/* Real Images with Entrance Animation */}
         {images.map((img) => (
-          <div key={img.id} className="group relative bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 transition-all hover:shadow-xl">
+          <div 
+            key={img.id} 
+            className="group relative bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 transition-all hover:shadow-xl animate-in zoom-in-95 duration-700 ease-out"
+          >
             <img 
               src={img.url} 
               alt="Generated Result" 
-              className="w-full h-72 object-cover cursor-pointer"
+              className="w-full h-72 object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
               onClick={() => setSelectedImage(img)}
             />
             <div className="p-4">
