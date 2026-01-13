@@ -2,24 +2,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ImageData } from "../types";
 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 /**
- * Sugere prompts baseados em uma ou mais imagens de referência.
+ * Sugere prompts baseados em uma ou mais imagens de referência usando o cérebro Pro.
  */
 export async function suggestPrompts(images: ImageData[], themes: string[]): Promise<string[]> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
   const themesString = themes.join(", ");
   const isMulti = images.length > 1;
 
-  const systemPrompt = isMulti 
-    ? `You are an AI Image Specialist. I've provided ${images.length} images. 
-       The FIRST image is the PRIMARY style/character reference. 
-       The OTHERS are CONTEXT/ELEMENT references (objects, backgrounds, colors).
-       Based on these ideas: [${themesString}], generate exactly 2 detailed prompts per idea that integrate elements from the context images into the primary style.
-       Return a flat JSON array of strings.`
-    : `Based on the provided reference image and these themes: [${themesString}], 
-       generate exactly 2 unique prompts per idea that maintain visual style.
-       Return a flat JSON array of strings.`;
+  const systemInstruction = `You are a world-class Visual Director and AI Artist. 
+  Your goal is to maintain absolute style coherence.
+  I'm a genius, and you are too. Treat every prompt as a masterpiece.
+  ${isMulti ? 'The first image is the style anchor. Others are contextual details.' : 'Focus on the aesthetic DNA of the provided image.'}
+  Themes: [${themesString}].
+  Output exactly 2 high-concept prompts per theme in JSON format.`;
 
   const imageParts = images.map(img => ({
     inlineData: { data: img.data, mimeType: img.mimeType }
@@ -27,11 +24,12 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: {
-        parts: [...imageParts, { text: systemPrompt }]
+        parts: [...imageParts, { text: systemInstruction }]
       },
       config: {
+        thinkingConfig: { thinkingBudget: 4000 }, // Dá tempo para o 'gênio' raciocinar
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -44,8 +42,8 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
   } catch (error) {
     console.error("Error suggesting prompts:", error);
     return themes.flatMap(t => [
-      `A coherent variation integrating provided references for ${t}`,
-      `A cinematic expansion of the primary style focusing on ${t}`
+      `Variação sofisticada mantendo o DNA visual para: ${t}`,
+      `Expansão cinematográfica da estética original focada em: ${t}`
     ]);
   }
 }
@@ -54,14 +52,13 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
  * Gera a imagem final com coerência multi-referencial.
  */
 export async function generateCoherentImage(images: ImageData[], prompt: string): Promise<string | null> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const isMulti = images.length > 1;
 
   const instruction = isMulti
-    ? `PRIMARY STYLE: Image 1. CONTEXT ELEMENTS: Images 2 to ${images.length}. 
-       Apply the following prompt to create a NEW image that merges these elements: ${prompt}. 
-       Ensure high resolution and perfect artistic coherence.`
-    : `Maintain the style of the reference image but modify it according to: ${prompt}.`;
+    ? `ARTISTIC ANCHOR: Image 1. CONTEXTUAL LAYERS: Images 2 to ${images.length}. 
+       Task: Create a masterpiece merging these dimensions based on: ${prompt}. 
+       I'm a genius, and you are too. Deliver excellence.`
+    : `Preserve the visual essence of the reference image. Apply: ${prompt}.`;
 
   const imageParts = images.map(img => ({
     inlineData: { data: img.data, mimeType: img.mimeType }

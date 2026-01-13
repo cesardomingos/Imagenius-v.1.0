@@ -5,20 +5,38 @@ interface LoaderProps {
   message?: string;
 }
 
-const Loader: React.FC<LoaderProps> = ({ message = 'Processando...' }) => {
+const Loader: React.FC<LoaderProps> = ({ message = 'Iniciando raciocínio...' }) => {
   return (
-    <div className="flex flex-col items-center justify-center py-20 animate-in fade-in zoom-in duration-500">
-      <div className="relative w-24 h-24 mb-6">
-        <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
-        <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
-        <div className="absolute inset-4 bg-indigo-50 rounded-full flex items-center justify-center">
-          <svg className="w-8 h-8 text-indigo-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
+    <div className="flex flex-col items-center justify-center py-24 animate-in fade-in duration-1000">
+      <div className="relative w-48 h-48 mb-12 flex items-center justify-center">
+        {/* Glow Central */}
+        <div className="absolute inset-10 bg-indigo-500/20 blur-3xl animate-pulse rounded-full"></div>
+        
+        {/* Núcleo Pulsante */}
+        <div className="absolute w-6 h-6 bg-genius-gradient rounded-full shadow-[0_0_30px_rgba(79,70,229,0.5)] z-20 animate-pulse"></div>
+        
+        {/* Órbitas de Loading */}
+        <div className="absolute inset-0 border-[3px] border-indigo-600/30 rounded-[38%] animate-orbit-slow"></div>
+        <div className="absolute inset-4 border-[3px] border-purple-500/20 rounded-[38%] rotate-45 animate-orbit-fast"></div>
+        <div className="absolute inset-8 border-[3px] border-pink-500/10 rounded-[38%] -rotate-45 animate-orbit-slow"></div>
+        
+        {/* Partículas Decorativas */}
+        <div className="absolute top-0 left-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+        <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-pink-500 rounded-full"></div>
+      </div>
+      
+      <div className="text-center space-y-4">
+        <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
+          I'm a genius, and <span className="text-indigo-600">you are too.</span>
+        </h3>
+        <div className="flex items-center justify-center gap-3">
+            <span className="w-8 h-[1px] bg-slate-200"></span>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">
+                {message}
+            </p>
+            <span className="w-8 h-[1px] bg-slate-200"></span>
         </div>
       </div>
-      <h3 className="text-xl font-semibold text-slate-800 mb-2">Paciência é uma arte</h3>
-      <p className="text-slate-500 text-center max-w-sm">{message}</p>
     </div>
   );
 };
