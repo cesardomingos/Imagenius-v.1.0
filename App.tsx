@@ -10,6 +10,9 @@ import Gallery from './components/Gallery';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import PricingModal from './components/PricingModal';
+import AuthModal from './components/AuthModal';
+import { getCurrentUser, signOut } from './services/supabaseService';
+import { UserProfile } from './types';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('mode_selection');
@@ -25,15 +28,33 @@ const App: React.FC = () => {
   // Credit System State
   const [credits, setCredits] = useState<number>(0);
   const [isStoreOpen, setIsStoreOpen] = useState(false);
+  
+  // Auth State
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
-  // Carrega créditos iniciais do Supabase (mock)
+  // Carrega usuário e créditos iniciais
   useEffect(() => {
-    const loadCredits = async () => {
+    const loadUser = async () => {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
       const currentCredits = await fetchUserCredits();
       setCredits(currentCredits);
     };
-    loadCredits();
+    loadUser();
   }, []);
+
+  const handleAuthSuccess = async (user: UserProfile) => {
+    setCurrentUser(user);
+    const currentCredits = await fetchUserCredits();
+    setCredits(currentCredits);
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+    setCurrentUser(null);
+    setCredits(5); // Reset para créditos padrão
+  };
 
   const handleModeSelection = (mode: ProjectMode) => {
     setProjectMode(mode);
@@ -122,29 +143,32 @@ const App: React.FC = () => {
   };
 
   const handlePurchase = async (plan: PricingPlan) => {
+    // Verificar se o usuário está autenticado
+    if (!currentUser) {
+      alert('Você precisa estar logado para fazer uma compra. Faça login primeiro.');
+      setIsStoreOpen(false);
+      setIsAuthOpen(true);
+      return;
+    }
+
     setIsProcessing(true);
     setLoadingMsg(`Conectando ao terminal de pagamento seguro...`);
     
     try {
       // 1. Criar transação pendente no Supabase
-      await createPendingTransaction(plan.id, "current-user-uuid");
+      await createPendingTransaction(plan.id, currentUser.id);
       
-      // 2. Iniciar Checkout do Stripe
-      await startStripeCheckout(plan);
+      // 2. Iniciar Checkout do Stripe (redireciona o usuário)
+      await startStripeCheckout(plan, currentUser.id);
       
-      // Simulação de retorno de sucesso do Webhook do Stripe (apenas para o mock)
-      setTimeout(() => {
-        setCredits(prev => prev + plan.credits);
-        localStorage.setItem('genius_credits', (credits + plan.credits).toString());
-        setIsProcessing(false);
-        setIsStoreOpen(false);
-        alert(`Pagamento Confirmado! Adicionamos ${plan.credits} créditos ao seu Atelier.`);
-      }, 1000);
+      // Nota: Após o pagamento bem-sucedido, o webhook do Stripe atualizará os créditos
+      // O usuário será redirecionado de volta para a aplicação após o checkout
+      // Não precisamos fechar o modal aqui, pois o redirecionamento vai acontecer
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro no checkout:", error);
       setIsProcessing(false);
-      alert("Falha ao iniciar pagamento. Tente novamente.");
+      alert(error.message || "Falha ao iniciar pagamento. Tente novamente.");
     }
   };
 
@@ -163,6 +187,9 @@ const App: React.FC = () => {
         goToGallery={() => setStep('gallery')} 
         credits={credits}
         onOpenStore={() => setIsStoreOpen(true)}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={handleLogout}
       />
       
       <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
@@ -170,6 +197,14 @@ const App: React.FC = () => {
           <PricingModal 
             onClose={() => setIsStoreOpen(false)} 
             onSelectPlan={handlePurchase} 
+          />
+        )}
+
+        {isAuthOpen && (
+          <AuthModal
+            isOpen={isAuthOpen}
+            onClose={() => setIsAuthOpen(false)}
+            onAuthSuccess={handleAuthSuccess}
           />
         )}
 

@@ -10,10 +10,13 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       plugins: [react()],
-      // Injeta a variável de ambiente no código do cliente
+      // Injeta as variáveis de ambiente no código do cliente
       define: {
         'import.meta.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY),
+        'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL),
+        'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
+        'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY),
       },
       resolve: {
         alias: {

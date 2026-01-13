@@ -1,15 +1,20 @@
 
 import React from 'react';
 
+import { UserProfile } from '../types';
+
 interface HeaderProps {
   onReset: () => void;
   hasImages: boolean;
   goToGallery: () => void;
   credits: number;
   onOpenStore: () => void;
+  currentUser: UserProfile | null;
+  onOpenAuth: () => void;
+  onLogout: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore }) => {
+const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout }) => {
   return (
     <header className="bg-white/80 backdrop-blur-xl border-b border-slate-100 sticky top-0 z-40">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
@@ -61,6 +66,30 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
                 Galeria
               </button>
             )}
+            
+            {/* Auth Button */}
+            {currentUser ? (
+              <div className="flex items-center gap-3">
+                <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Usuário</p>
+                  <p className="text-xs font-black text-slate-900 truncate max-w-[120px]">{currentUser.email}</p>
+                </div>
+                <button 
+                  onClick={onLogout}
+                  className="px-4 py-2 text-slate-600 hover:text-red-600 font-bold text-xs uppercase tracking-widest transition-colors"
+                >
+                  Sair
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={onOpenAuth}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+              >
+                Entrar
+              </button>
+            )}
+            
             <button 
               onClick={onReset}
               className="bg-slate-900 hover:bg-indigo-600 text-white px-7 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-2"
