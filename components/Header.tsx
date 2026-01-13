@@ -47,6 +47,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery }) => {
              </p>
           </div>
           <div className="flex items-center gap-3">
+            <QuotaDisplay />
             {hasImages && (
               <button 
                 onClick={goToGallery}

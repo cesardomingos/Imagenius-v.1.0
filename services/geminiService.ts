@@ -18,8 +18,6 @@ function getApiKey(): string {
   return apiKey;
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 /**
  * Sugere prompts baseados em uma ou mais imagens de referência usando o cérebro Pro.
  */
