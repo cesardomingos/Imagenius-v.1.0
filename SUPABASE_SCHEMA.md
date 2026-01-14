@@ -138,7 +138,7 @@ Crie uma Edge Function no Supabase chamada `create-checkout-session`:
 3. **Código:**
 
 ```typescript
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 
@@ -748,7 +748,7 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
 const PLAN_CREDITS: Record<string, number> = {
   'starter': 20,
   'genius': 100,
-  'master': 300,
+  'master': 400,
 };
 
 serve(async (req) => {
@@ -775,7 +775,9 @@ serve(async (req) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret || "");
+    // IMPORTANTE: No Deno/Edge Functions, usar constructEventAsync ao invés de constructEvent
+    // Isso é necessário porque SubtleCryptoProvider não pode ser usado em contexto síncrono
+    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret || "");
     console.log(`[WEBHOOK] ✓ Evento validado: ${event.type}`);
   } catch (err: any) {
     console.error(`[WEBHOOK] ❌ Erro ao validar evento:`, err.message);
