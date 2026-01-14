@@ -349,3 +349,120 @@ export async function unshareArt(
   }
 }
 
+/**
+ * Salva uma arte do usuário no banco de dados (com is_shared: false por padrão)
+ * @param imageUrl - URL da imagem
+ * @param prompt - Prompt usado para gerar
+ * @returns Objeto com sucesso e ID da arte criada
+ */
+export async function saveUserArt(
+  imageUrl: string,
+  prompt: string
+): Promise<{ success: boolean; artId?: string; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      // Se não estiver logado, não salva mas não retorna erro (comportamento silencioso)
+      return { success: false, error: 'Usuário não autenticado' };
+    }
+
+    // Verificar se a arte já existe para evitar duplicatas
+    const checkResult = await checkIfArtIsShared(imageUrl);
+    
+    if (checkResult.success && checkResult.artId) {
+      // Se já existe, retornar sucesso sem criar duplicata
+      return { success: true, artId: checkResult.artId };
+    }
+
+    // Criar nova entrada com is_shared: false
+    const { data, error } = await supabase
+      .from('community_arts')
+      .insert({
+        user_id: currentUser.id,
+        image_url: imageUrl,
+        prompt: prompt,
+        is_shared: false
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Erro ao salvar arte do usuário:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, artId: data.id };
+  } catch (error: any) {
+    console.error('Erro ao salvar arte do usuário:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Busca o histórico de artes do usuário logado
+ * @param limit - Número máximo de artes a retornar (padrão: 100)
+ * @param offset - Offset para paginação (padrão: 0)
+ * @returns Array de artes do usuário
+ */
+export async function fetchUserArts(
+  limit: number = 100,
+  offset: number = 0
+): Promise<CommunityArt[]> {
+  try {
+    if (!supabase) {
+      console.warn('Supabase não configurado. Retornando array vazio.');
+      return [];
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return [];
+    }
+
+    // Buscar todas as artes do usuário (independente de is_shared)
+    const { data, error } = await supabase
+      .from('community_arts')
+      .select(`
+        id,
+        user_id,
+        image_url,
+        prompt,
+        is_shared,
+        created_at,
+        updated_at
+      `)
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Erro ao buscar artes do usuário:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Mapear dados para o formato esperado
+    const userArts: CommunityArt[] = data.map((art: any) => ({
+      id: art.id,
+      user_id: art.user_id,
+      image_url: art.image_url,
+      prompt: art.prompt,
+      is_shared: art.is_shared,
+      created_at: art.created_at,
+      updated_at: art.updated_at
+    }));
+
+    return userArts;
+  } catch (error) {
+    console.error('Erro ao buscar artes do usuário:', error);
+    return [];
+  }
+}
+

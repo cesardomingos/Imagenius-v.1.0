@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
 import { fetchUserCredits, deductCredits, checkAndUpdateTransactionStatus } from './services/supabaseService';
 import { startStripeCheckout } from './services/stripeService';
+import { saveUserArt, fetchUserArts } from './services/communityService';
 import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
 import Gallery from './components/Gallery';
@@ -13,6 +14,7 @@ import Loader from './components/Loader';
 import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
+import TutorialModal from './components/TutorialModal';
 import { getCurrentUser, signOut } from './services/supabaseService';
 import { UserProfile } from './types';
 
@@ -35,19 +37,44 @@ const App: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
 
+  // Tutorial State
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
   // Toast/Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
-  // Carrega usuário e créditos iniciais
+  // Função para carregar histórico de artes do usuário
+  const loadUserArts = useCallback(async () => {
+    try {
+      const userArts = await fetchUserArts(100, 0);
+      // Converter CommunityArt para GeneratedImage
+      const convertedImages: GeneratedImage[] = userArts.map(art => ({
+        id: art.id,
+        url: art.image_url,
+        prompt: art.prompt,
+        timestamp: new Date(art.created_at).getTime()
+      }));
+      setGeneratedImages(convertedImages);
+    } catch (error) {
+      console.error('Erro ao carregar histórico de artes:', error);
+    }
+  }, []);
+
+  // Carrega usuário, créditos e histórico de artes iniciais
   useEffect(() => {
     const loadUser = async () => {
       const user = await getCurrentUser();
       setCurrentUser(user);
       const currentCredits = await fetchUserCredits();
       setCredits(currentCredits);
+      
+      // Carregar histórico de artes se o usuário estiver logado
+      if (user) {
+        loadUserArts();
+      }
     };
     loadUser();
-  }, []);
+  }, [loadUserArts]);
 
   // Detectar retorno do checkout do Stripe
   useEffect(() => {
@@ -146,12 +173,15 @@ const App: React.FC = () => {
     setCurrentUser(user);
     const currentCredits = await fetchUserCredits();
     setCredits(currentCredits);
+    // Carregar histórico de artes após login
+    await loadUserArts();
   };
 
   const handleLogout = async () => {
     await signOut();
     setCurrentUser(null);
     setCredits(5); // Reset para créditos padrão
+    setGeneratedImages([]); // Limpar galeria ao fazer logout
   };
 
   const handleModeSelection = (mode: ProjectMode) => {
@@ -225,8 +255,17 @@ const App: React.FC = () => {
         if (imageUrl) {
           const success = await deductCredits(1);
           if (success) {
+            // Salvar arte no banco se o usuário estiver logado
+            let artId: string | undefined;
+            if (currentUser) {
+              const saveResult = await saveUserArt(imageUrl, selectedPrompts[i]);
+              if (saveResult.success && saveResult.artId) {
+                artId = saveResult.artId;
+              }
+            }
+
             const newImg: GeneratedImage = {
-              id: (Date.now() + i).toString(),
+              id: artId || (Date.now() + i).toString(),
               url: imageUrl,
               prompt: selectedPrompts[i],
               timestamp: Date.now()
@@ -302,7 +341,13 @@ const App: React.FC = () => {
       <Header 
         onReset={resetApp} 
         hasImages={generatedImages.length > 0} 
-        goToGallery={() => setStep('gallery')} 
+        goToGallery={() => {
+          setStep('gallery');
+          // Recarregar histórico ao navegar para a galeria
+          if (currentUser) {
+            loadUserArts();
+          }
+        }} 
         credits={credits}
         onOpenStore={() => setIsStoreOpen(true)}
         currentUser={currentUser}
@@ -337,6 +382,13 @@ const App: React.FC = () => {
           />
         )}
 
+        {isTutorialOpen && (
+          <TutorialModal
+            isOpen={isTutorialOpen}
+            onClose={() => setIsTutorialOpen(false)}
+          />
+        )}
+
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (
@@ -352,6 +404,21 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  {/* Botão de Tutorial */}
+                  <div className="md:col-span-2 flex justify-center">
+                    <button
+                      onClick={() => setIsTutorialOpen(true)}
+                      className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 hover:border-indigo-300 text-indigo-700 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                    >
+                      <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span>Como funciona a Estética Coerente?</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                  </div>
                   <button 
                     onClick={() => handleModeSelection('single')}
                     className="group relative p-10 rounded-[2.5rem] bg-slate-50 border-2 border-transparent hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100"
@@ -359,7 +426,7 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 bg-white rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                       <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 mb-3">Estética Única</h3>
+                    <h3 className="text-2xl font-black text-slate-900 mb-3">Estética Coerente</h3>
                     <p className="text-slate-500 font-medium leading-relaxed">Fidelidade absoluta a partir de uma única imagem de referência.</p>
                   </button>
 
@@ -529,8 +596,27 @@ const App: React.FC = () => {
                             </p>
                         </div>
                     )}
+                    {!batchStatus && currentUser && (
+                      <p className="text-sm text-slate-500 font-medium">
+                        Seu histórico pessoal de criações
+                      </p>
+                    )}
                   </div>
-                  <button onClick={resetApp} className="bg-slate-900 text-white hover:bg-indigo-600 px-10 py-5 rounded-[1.5rem] font-black transition-all shadow-2xl hover:-translate-y-1 active:scale-95">Iniciar Nova Obra</button>
+                  <div className="flex gap-3">
+                    {currentUser && (
+                      <button 
+                        onClick={loadUserArts} 
+                        className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 px-6 py-5 rounded-[1.5rem] font-black transition-all shadow-lg hover:-translate-y-1 active:scale-95 flex items-center gap-2"
+                        title="Atualizar histórico"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Atualizar
+                      </button>
+                    )}
+                    <button onClick={resetApp} className="bg-slate-900 text-white hover:bg-indigo-600 px-10 py-5 rounded-[1.5rem] font-black transition-all shadow-2xl hover:-translate-y-1 active:scale-95">Iniciar Nova Obra</button>
+                  </div>
                 </div>
                 <Gallery 
                     images={generatedImages} 
