@@ -1,19 +1,43 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PricingPlan } from '../types';
 
 interface PricingModalProps {
   onClose: () => void;
   onSelectPlan: (plan: PricingPlan) => void;
+  isProcessing?: boolean;
 }
 
 const PLANS: PricingPlan[] = [
   { id: 'starter', name: 'Aprendiz', credits: 20, price: 'R$ 11,90' },
   { id: 'genius', name: 'Gênio', credits: 100, price: 'R$ 19,90', popular: true },
-  { id: 'master', name: 'Imortal', credits: 300, price: 'R$ 59,90' },
+  { id: 'master', name: 'Imortal', credits: 400, price: 'R$ 59,90' },
 ];
 
-const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan }) => {
+const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isProcessing = false }) => {
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
+  // Reset selectedPlanId quando o processamento terminar ou o modal fechar
+  useEffect(() => {
+    if (!isProcessing) {
+      setSelectedPlanId(null);
+    }
+  }, [isProcessing]);
+
+  const handlePlanClick = async (plan: PricingPlan) => {
+    if (isProcessing || selectedPlanId) return; // Prevenir cliques múltiplos
+    
+    setSelectedPlanId(plan.id);
+    try {
+      await onSelectPlan(plan);
+      // Nota: Não resetamos aqui porque o redirecionamento do Stripe vai acontecer
+      // O reset será feito pelo useEffect quando isProcessing mudar
+    } catch (error) {
+      console.error('Erro ao selecionar plano:', error);
+      setSelectedPlanId(null); // Reset em caso de erro
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-10 overflow-y-auto">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
@@ -58,11 +82,19 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan }) =>
           {/* Opções de Planos */}
           <div className="lg:col-span-8 p-4 sm:p-6 md:p-8 lg:p-14 bg-white">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
-              {PLANS.map((plan) => (
+              {PLANS.map((plan) => {
+                const isSelected = selectedPlanId === plan.id;
+                const isDisabled = isProcessing || (selectedPlanId !== null && !isSelected);
+                
+                return (
                 <div 
                   key={plan.id}
-                  onClick={() => onSelectPlan(plan)}
-                  className={`relative p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] md:rounded-[2.5rem] border-2 transition-all cursor-pointer group flex flex-col justify-between min-h-[200px] sm:min-h-[240px] ${
+                  onClick={() => !isDisabled && handlePlanClick(plan)}
+                  className={`relative p-5 sm:p-6 md:p-8 rounded-2xl sm:rounded-[2rem] md:rounded-[2.5rem] border-2 transition-all flex flex-col justify-between min-h-[200px] sm:min-h-[240px] ${
+                    isDisabled 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'cursor-pointer group'
+                  } ${
                     plan.popular 
                       ? 'border-indigo-600 bg-indigo-50/10 shadow-xl shadow-indigo-100 sm:col-span-2 lg:col-span-1' 
                       : 'border-slate-100 hover:border-indigo-200'
@@ -84,14 +116,31 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan }) =>
 
                   <div className="mt-6 sm:mt-8 md:mt-10 space-y-3 sm:space-y-4">
                     <div className="text-xl sm:text-2xl font-black text-slate-900">{plan.price}</div>
-                    <button className={`w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest transition-all ${
-                      plan.popular ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 text-white'
-                    } group-hover:scale-[1.05] active:scale-95`}>
-                      Selecionar
+                    <button 
+                      disabled={isDisabled}
+                      className={`w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                        isDisabled 
+                          ? 'bg-slate-400 cursor-not-allowed' 
+                          : plan.popular 
+                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 group-hover:scale-[1.05] active:scale-95' 
+                            : 'bg-slate-900 text-white group-hover:scale-[1.05] active:scale-95'
+                      }`}
+                    >
+                      {isSelected ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Processando...</span>
+                        </>
+                      ) : (
+                        'Selecionar'
+                      )}
                     </button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
             <div className="mt-6 sm:mt-8 md:mt-12 flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 md:p-8 bg-slate-50 rounded-xl sm:rounded-2xl gap-4 sm:gap-6">

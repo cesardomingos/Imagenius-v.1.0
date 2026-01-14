@@ -5,9 +5,10 @@ import { PromptSuggestion } from '../types';
 interface PromptEditorProps {
   suggestions: PromptSuggestion[];
   onGenerate: (prompts: string[]) => void;
+  credits?: number;
 }
 
-const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) => {
+const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, credits = 0 }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   // Store custom edits for each suggestion
   const [editedPrompts, setEditedPrompts] = useState<Record<number, string>>(
@@ -92,21 +93,75 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate }) 
       </div>
 
       <div className="sticky bottom-6 left-0 right-0 pt-8 z-20">
-        <button
-          onClick={handleGenerateClick}
-          disabled={selectedIds.length === 0}
-          className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:shadow-none text-white font-black py-6 px-10 rounded-[1.75rem] transition-all shadow-2xl flex items-center justify-center gap-6 transform active:scale-[0.98] group"
-        >
-          <div className="flex items-center justify-center bg-white/10 w-10 h-10 rounded-xl group-hover:bg-white/20 transition-colors">
-            <span className="text-white text-xl">{selectedIds.length}</span>
-          </div>
-          <span className="text-xl tracking-tight">
-            {selectedIds.length === 0 ? 'Escolha sua direção' : (selectedIds.length === 1 ? 'Gerar Selecionada' : `Materializar ${selectedIds.length} Obras`)}
-          </span>
-          <svg className="w-6 h-6 animate-bounce-x" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-          </svg>
-        </button>
+        <div className="bg-white rounded-[1.75rem] p-2 shadow-2xl border-2 border-slate-100">
+          {/* Informação de créditos */}
+          {selectedIds.length > 0 && (
+            <div className="px-6 py-3 mb-2 bg-indigo-50 rounded-xl border border-indigo-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                      Créditos a gastar
+                    </p>
+                    <p className="text-lg font-black text-indigo-600">
+                      {selectedIds.length} {selectedIds.length === 1 ? 'crédito' : 'créditos'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Disponível
+                  </p>
+                  <p className={`text-lg font-black ${credits >= selectedIds.length ? 'text-green-600' : 'text-red-600'}`}>
+                    {credits} {credits === 1 ? 'crédito' : 'créditos'}
+                  </p>
+                </div>
+              </div>
+              {credits < selectedIds.length && (
+                <div className="mt-2 pt-2 border-t border-red-200">
+                  <p className="text-xs font-bold text-red-600 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Você precisa de mais {selectedIds.length - credits} {selectedIds.length - credits === 1 ? 'crédito' : 'créditos'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <button
+            onClick={handleGenerateClick}
+            disabled={selectedIds.length === 0 || credits < selectedIds.length}
+            className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:cursor-not-allowed disabled:text-slate-400 text-white font-black py-6 px-10 rounded-[1.5rem] transition-all shadow-xl flex items-center justify-center gap-6 transform active:scale-[0.98] group"
+          >
+            <div className="flex items-center justify-center bg-white/10 w-10 h-10 rounded-xl group-hover:bg-white/20 transition-colors">
+              <span className="text-white text-xl">{selectedIds.length}</span>
+            </div>
+            <div className="flex-1 text-left">
+              <span className="text-xl tracking-tight block">
+                {selectedIds.length === 0 
+                  ? 'Escolha sua direção' 
+                  : selectedIds.length === 1 
+                    ? 'Materializar Obra' 
+                    : `Materializar ${selectedIds.length} Obras`}
+              </span>
+              {selectedIds.length > 0 && (
+                <span className="text-xs font-bold text-white/70 uppercase tracking-wider block mt-1">
+                  {selectedIds.length} {selectedIds.length === 1 ? 'crédito será gasto' : 'créditos serão gastos'}
+                </span>
+              )}
+            </div>
+            <svg className="w-6 h-6 animate-bounce-x" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

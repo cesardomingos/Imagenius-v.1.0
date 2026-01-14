@@ -214,6 +214,9 @@ const App: React.FC = () => {
     setStep('gallery');
     setBatchStatus({ total: selectedPrompts.length, current: 0 });
     
+    let successfulGenerations = 0;
+    let creditsDeducted = 0;
+    
     for (let i = 0; i < selectedPrompts.length; i++) {
       setBatchStatus(prev => prev ? { ...prev, current: i + 1 } : null);
       try {
@@ -229,6 +232,8 @@ const App: React.FC = () => {
             };
             setGeneratedImages(prev => [newImg, ...prev]);
             setCredits(prev => prev - 1);
+            successfulGenerations++;
+            creditsDeducted++;
           }
         }
       } catch (error) {
@@ -237,6 +242,23 @@ const App: React.FC = () => {
     }
 
     setBatchStatus(null);
+
+    // Mostrar toast com feedback sobre créditos gastos
+    if (creditsDeducted > 0) {
+      const creditText = creditsDeducted === 1 ? 'crédito' : 'créditos';
+      const imageText = successfulGenerations === 1 ? 'imagem foi materializada' : 'imagens foram materializadas';
+      
+      setToast({
+        message: `${successfulGenerations} ${imageText}! ${creditsDeducted} ${creditText} ${creditsDeducted === 1 ? 'foi' : 'foram'} gasto${creditsDeducted === 1 ? '' : 's'}.`,
+        type: 'success'
+      });
+    } else if (selectedPrompts.length > 0) {
+      // Caso nenhuma imagem tenha sido gerada com sucesso
+      setToast({
+        message: 'Não foi possível gerar as imagens. Verifique sua conexão e tente novamente.',
+        type: 'warning'
+      });
+    }
   };
 
   const handlePurchase = async (plan: PricingPlan) => {
@@ -291,7 +313,8 @@ const App: React.FC = () => {
         {isStoreOpen && (
           <PricingModal 
             onClose={() => setIsStoreOpen(false)} 
-            onSelectPlan={handlePurchase} 
+            onSelectPlan={handlePurchase}
+            isProcessing={isProcessing}
           />
         )}
 
@@ -464,7 +487,7 @@ const App: React.FC = () => {
                     </button>
                     <div className="pt-10 border-t border-slate-50">
                       <button onClick={handleSuggestPrompts} disabled={themes.every(t => t.trim() === '')} className="w-full bg-slate-900 hover:bg-indigo-600 text-white font-black py-6 rounded-[2rem] transition-all shadow-2xl text-xl tracking-tight uppercase group">
-                         Projetar Sugestões <span className="text-indigo-400 group-hover:text-white transition-colors italic ml-2">by Gemini Pro</span>
+                         Projetar Sugestões <span className="text-indigo-400 group-hover:text-white transition-colors italic ml-2">by Imagenius</span>
                       </button>
                     </div>
                   </div>
@@ -483,7 +506,7 @@ const App: React.FC = () => {
                     <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Refinando o DNA Artístico</p>
                   </div>
                 </div>
-                <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} />
+                <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} credits={credits} />
               </div>
             )}
 
@@ -526,9 +549,7 @@ const App: React.FC = () => {
           </div>
           <p className="text-slate-400 text-[10px] font-mono-genius uppercase tracking-[0.5em]">"I'm a genius, and you are too."</p>
           <div className="pt-10 flex justify-center gap-12">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Branding by Lux IA</span>
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Gemini 3 Pro Brain</span>
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Insight Orbit™</span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Todos os direitos reservados</span>
           </div>
         </div>
       </footer>
