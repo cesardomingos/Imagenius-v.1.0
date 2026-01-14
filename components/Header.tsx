@@ -72,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
               <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Créditos</span>
               <span className="text-sm font-black text-slate-900 dark:text-white">{credits}</span>
             </div>
-            <div className="w-8 h-8 bg-genius-gradient rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+            <div className="w-8 h-8 bg-genius-gradient rounded-xl flex items-center justify-center text-white shadow shadow-indigo-100/50 group-hover:scale-110 transition-transform">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             </div>
           </div>
