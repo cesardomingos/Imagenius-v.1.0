@@ -138,7 +138,7 @@ Crie uma Edge Function no Supabase chamada `create-checkout-session`:
 3. **Código:**
 
 ```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 
@@ -149,13 +149,13 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
 const PLAN_CREDITS: Record<string, number> = {
   'starter': 20,
   'genius': 100,
-  'master': 300,
+  'master': 400,
 };
 
 const PLAN_PRICES: Record<string, number> = {
-  'starter': 990,   // R$ 9,90 em centavos
-  'genius': 2990,   // R$ 29,90 em centavos
-  'master': 6990,  // R$ 69,90 em centavos
+  'starter': 1190,   // R$ 11,90 em centavos
+  'genius': 1990,   // R$ 19,90 em centavos
+  'master': 5990,  // R$ 59,90 em centavos
 };
 
 // Headers CORS
@@ -168,23 +168,31 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Tratar requisição OPTIONS (preflight)
-  if (req.method === "OPTIONS") {
-    console.log("[CORS] Preflight request recebido");
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  // Log inicial da requisição
-  const requestId = crypto.randomUUID();
-  console.log(`[${requestId}] === NOVA REQUISIÇÃO ===`);
-  console.log(`[${requestId}] Método: ${req.method}`);
-  console.log(`[${requestId}] URL: ${req.url}`);
-  
+  // Try-catch mais amplo para capturar erros antes dos logs
   try {
+    // Tratar requisição OPTIONS (preflight)
+    if (req.method === "OPTIONS") {
+      console.log("[CORS] Preflight request recebido");
+      return new Response("ok", { headers: corsHeaders });
+    }
+
+    // Log inicial da requisição
+    const requestId = crypto.randomUUID();
+    console.log(`[${requestId}] === NOVA REQUISIÇÃO ===`);
+    console.log(`[${requestId}] Método: ${req.method}`);
+    console.log(`[${requestId}] URL: ${req.url}`);
+    console.log(`[${requestId}] Timestamp: ${new Date().toISOString()}`);
+    
+    try {
     // Verificar autenticação
     const authHeader = req.headers.get("Authorization");
     const apikey = req.headers.get("apikey");
     const contentType = req.headers.get("Content-Type");
+    
+    // Obter SUPABASE_URL e SUPABASE_ANON_KEY das variáveis de ambiente (fora do if para estar disponível em todo o escopo)
+    // NOTA: O Supabase fornece automaticamente SUPABASE_URL, mas SUPABASE_ANON_KEY precisa ser configurada manualmente
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     
     // Log detalhado dos headers
     console.log(`[${requestId}] === HEADERS ===`);
@@ -203,8 +211,8 @@ serve(async (req) => {
     
     // Log de todas as variáveis de ambiente (sem expor valores completos)
     console.log(`[${requestId}] === VARIÁVEIS DE AMBIENTE ===`);
-    console.log(`[${requestId}] SUPABASE_URL: ${Deno.env.get("SUPABASE_URL") ? "configurado" : "NÃO CONFIGURADO"}`);
-    console.log(`[${requestId}] SUPABASE_ANON_KEY: ${Deno.env.get("SUPABASE_ANON_KEY") ? "configurado (" + Deno.env.get("SUPABASE_ANON_KEY")?.substring(0, 10) + "...)" : "NÃO CONFIGURADO"}`);
+    console.log(`[${requestId}] SUPABASE_URL: ${supabaseUrl ? "configurado" : "NÃO CONFIGURADO"}`);
+    console.log(`[${requestId}] SUPABASE_ANON_KEY: ${supabaseAnonKey ? "configurado (" + supabaseAnonKey.substring(0, 10) + "...)" : "NÃO CONFIGURADO"}`);
     console.log(`[${requestId}] STRIPE_SECRET_KEY: ${Deno.env.get("STRIPE_SECRET_KEY") ? "configurado" : "NÃO CONFIGURADO"}`);
     console.log(`[${requestId}] SITE_URL: ${Deno.env.get("SITE_URL") || "não configurado"}`);
     
@@ -245,19 +253,35 @@ serve(async (req) => {
           }
         );
       }
-
-      // Obter SUPABASE_URL e SUPABASE_ANON_KEY das variáveis de ambiente
-      const supabaseUrl = Deno.env.get("SUPABASE_URL");
-      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
       
       console.log(`[${requestId}] Verificando configuração do Supabase...`);
       console.log(`[${requestId}] SUPABASE_URL: ${supabaseUrl ? "✓ configurado" : "✗ NÃO CONFIGURADO"}`);
       console.log(`[${requestId}] SUPABASE_ANON_KEY: ${supabaseAnonKey ? "✓ configurado (" + supabaseAnonKey.substring(0, 10) + "...)" : "✗ NÃO CONFIGURADO"}`);
       
-      if (!supabaseUrl || !supabaseAnonKey) {
-        console.error(`[${requestId}] ❌ ERRO: Configuração do Supabase incompleta`);
+      // Se SUPABASE_ANON_KEY não estiver configurada, usar o apikey do header como fallback
+      // MAS isso só funciona se o apikey do header for fornecido
+      if (!supabaseUrl) {
+        console.error(`[${requestId}] ❌ ERRO: SUPABASE_URL não configurado`);
         return new Response(
-          JSON.stringify({ error: "Configuração do Supabase incompleta" }),
+          JSON.stringify({ error: "SUPABASE_URL não configurado" }),
+          { 
+            status: 500, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
+      
+      // Se SUPABASE_ANON_KEY não estiver disponível, usar o apikey do header
+      // O apikey do header deve ser a chave anon public do Supabase
+      if (!supabaseAnonKey && !apikey) {
+        console.error(`[${requestId}] ❌ ERRO: SUPABASE_ANON_KEY não configurado e apikey não fornecido no header`);
+        return new Response(
+          JSON.stringify({ 
+            error: "SUPABASE_ANON_KEY não configurado. Configure nos secrets da Edge Function ou forneça via header 'apikey'"
+          }),
           { 
             status: 500, 
             headers: { 
@@ -280,13 +304,35 @@ serve(async (req) => {
       }
 
       // Criar cliente Supabase com o token
-      // IMPORTANTE: Usar o apikey do header se fornecido, senão usar da env var
+      // IMPORTANTE: Priorizar SUPABASE_ANON_KEY da env var (mais seguro e confiável)
+      // Usar apikey do header apenas como fallback se SUPABASE_ANON_KEY não estiver disponível
       // O apikey do header deve ser o mesmo que VITE_SUPABASE_ANON_KEY do frontend
-      const finalApikey = apikey || supabaseAnonKey;
+      const finalApikey = supabaseAnonKey || apikey;
+      
+      if (!finalApikey) {
+        console.error(`[${requestId}] ❌ ERRO: Nenhuma chave anon disponível (nem env var nem header)`);
+        return new Response(
+          JSON.stringify({ error: "Chave anon não disponível para validação do token" }),
+          { 
+            status: 500, 
+            headers: { 
+              "Content-Type": "application/json",
+              ...corsHeaders
+            } 
+          }
+        );
+      }
       
       console.log(`[${requestId}] Criando cliente Supabase...`);
-      console.log(`[${requestId}] apikey source: ${apikey ? "header" : "env var"}`);
+      console.log(`[${requestId}] apikey source: ${supabaseAnonKey ? "env var (SUPABASE_ANON_KEY)" : "header (fallback)"}`);
       console.log(`[${requestId}] finalApikey prefix: ${finalApikey.substring(0, 10)}...`);
+      console.log(`[${requestId}] finalApikey length: ${finalApikey.length} caracteres`);
+      
+      // Log importante: se estiver usando apikey do header, avisar
+      if (!supabaseAnonKey && apikey) {
+        console.warn(`[${requestId}] ⚠️ ATENÇÃO: Usando apikey do header porque SUPABASE_ANON_KEY não está configurada na Edge Function`);
+        console.warn(`[${requestId}] ⚠️ RECOMENDAÇÃO: Configure SUPABASE_ANON_KEY nos secrets da Edge Function para maior segurança`);
+      }
       
       const supabaseAuth = createClient(
         supabaseUrl,
@@ -317,12 +363,38 @@ serve(async (req) => {
         console.error(`[${requestId}] Status: ${authError.status || "não fornecido"}`);
         console.error(`[${requestId}] Nome: ${authError.name || "não fornecido"}`);
         console.error(`[${requestId}] Token prefix: ${authHeader.substring(7, 30)}...`);
-        console.error(`[${requestId}] apikey match: ${apikey === supabaseAnonKey ? "✓ SIM" : "✗ NÃO"}`);
         
-        if (apikey && apikey !== supabaseAnonKey) {
-          console.error(`[${requestId}] ⚠️ PROBLEMA IDENTIFICADO: apikey do header não corresponde!`);
-          console.error(`[${requestId}] Header apikey: ${apikey.substring(0, 20)}...`);
-          console.error(`[${requestId}] Env apikey: ${supabaseAnonKey.substring(0, 20)}...`);
+        // Verificação crítica: comparar apikey
+        const apikeyMatch = apikey === supabaseAnonKey;
+        console.error(`[${requestId}] apikey match: ${apikeyMatch ? "✓ SIM" : "✗ NÃO"}`);
+        
+        if (apikey && !apikeyMatch) {
+          console.error(`[${requestId}] ⚠️⚠️⚠️ PROBLEMA CRÍTICO IDENTIFICADO ⚠️⚠️⚠️`);
+          console.error(`[${requestId}] O apikey do header NÃO corresponde ao SUPABASE_ANON_KEY da Edge Function!`);
+          console.error(`[${requestId}] Header apikey (primeiros 30): ${apikey.substring(0, 30)}...`);
+          console.error(`[${requestId}] Env apikey (primeiros 30): ${supabaseAnonKey.substring(0, 30)}...`);
+          console.error(`[${requestId}] Header apikey length: ${apikey.length}`);
+          console.error(`[${requestId}] Env apikey length: ${supabaseAnonKey.length}`);
+          console.error(`[${requestId}] SOLUÇÃO: Configure SUPABASE_ANON_KEY na Edge Function com o mesmo valor de VITE_SUPABASE_ANON_KEY do frontend`);
+        } else if (!apikey) {
+          console.error(`[${requestId}] ⚠️ ATENÇÃO: apikey não foi enviado no header`);
+          console.error(`[${requestId}] Usando SUPABASE_ANON_KEY da variável de ambiente`);
+        }
+        
+        // Tentar decodificar o JWT para diagnóstico (sem validar assinatura)
+        try {
+          const tokenWithoutBearer = authHeader.substring(7); // Remove "Bearer "
+          const tokenParts = tokenWithoutBearer.split('.');
+          if (tokenParts.length === 3) {
+            const header = JSON.parse(atob(tokenParts[0]));
+            const payload = JSON.parse(atob(tokenParts[1]));
+            console.error(`[${requestId}] JWT Header:`, header);
+            console.error(`[${requestId}] JWT Payload (user_id):`, payload.sub || payload.user_id || "não encontrado");
+            console.error(`[${requestId}] JWT Payload (exp):`, payload.exp ? new Date(payload.exp * 1000).toISOString() : "não encontrado");
+            console.error(`[${requestId}] JWT Payload (iat):`, payload.iat ? new Date(payload.iat * 1000).toISOString() : "não encontrado");
+          }
+        } catch (decodeError) {
+          console.error(`[${requestId}] Não foi possível decodificar JWT para diagnóstico:`, decodeError);
         }
         
         // Se o erro for "Invalid JWT", pode ser que o apikey não corresponde
@@ -497,9 +569,29 @@ serve(async (req) => {
     console.log(`[${requestId}] Session ID: ${session.id}`);
     console.log(`[${requestId}] Session URL: ${session.url ? "presente" : "ausente"}`);
 
-    // NOTA: Não criamos a transação aqui - o frontend criará via RLS após obter o sessionId
-    // Isso resolve problemas de autenticação (401) e simplifica o fluxo
-    // O webhook do Stripe ainda atualizará o status usando service_role key (mantém segurança)
+    // Criar transação pendente no Supabase usando service_role key (bypassa RLS)
+    console.log(`[${requestId}] === CRIANDO TRANSAÇÃO PENDENTE ===`);
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Usa service_role para bypass RLS
+    );
+
+    const { error: transactionError } = await supabaseAdmin.from("transactions").insert({
+      user_id: finalUserId,
+      stripe_session_id: session.id,
+      plan_id,
+      amount_total: amountInCents,
+      currency: currency || "brl",
+      status: "pending",
+    });
+
+    if (transactionError) {
+      console.error(`[${requestId}] ❌ ERRO ao criar transação:`, transactionError);
+      // Não falhar a requisição, mas logar o erro
+      // O webhook pode criar a transação se ela não existir
+    } else {
+      console.log(`[${requestId}] ✓ Transação pendente criada com sucesso`);
+    }
 
     console.log(`[${requestId}] === SUCESSO ===`);
     console.log(`[${requestId}] Retornando resposta com sessionId`);
@@ -522,17 +614,55 @@ serve(async (req) => {
         } 
       }
     );
-  } catch (error) {
-    console.error(`[${requestId}] ❌❌❌ ERRO CRÍTICO ❌❌❌`);
-    console.error(`[${requestId}] Tipo: ${error.constructor.name}`);
-    console.error(`[${requestId}] Mensagem: ${error.message}`);
-    console.error(`[${requestId}] Stack:`, error.stack);
+    } catch (error: any) {
+      // Erro dentro do try interno (após requestId ser criado)
+      const errorRequestId = requestId || "unknown-" + Date.now();
+      
+      console.error(`[${errorRequestId}] ❌❌❌ ERRO CRÍTICO ❌❌❌`);
+      console.error(`[${errorRequestId}] Tipo: ${error?.constructor?.name || typeof error}`);
+      console.error(`[${errorRequestId}] Mensagem: ${error?.message || String(error)}`);
+      console.error(`[${errorRequestId}] Stack:`, error?.stack || "N/A");
+      
+      // Log adicional para debug
+      try {
+        console.error(`[${errorRequestId}] Error object keys:`, Object.keys(error || {}));
+      } catch (e) {
+        // Ignorar se não conseguir serializar
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          error: error?.message || "Erro interno do servidor",
+          requestId: errorRequestId,
+          type: error?.constructor?.name || "UnknownError"
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            "Content-Type": "application/json",
+            ...corsHeaders
+          } 
+        }
+      );
+    }
+  } catch (error: any) {
+    // Erro no try externo (antes dos logs ou durante inicialização)
+    // Isso captura erros que acontecem antes do requestId ser criado
+    const earlyErrorId = "early-error-" + Date.now();
+    
+    console.error(`[${earlyErrorId}] ❌❌❌ ERRO ANTES DOS LOGS ❌❌❌`);
+    console.error(`[${earlyErrorId}] Método: ${req?.method || "unknown"}`);
+    console.error(`[${earlyErrorId}] URL: ${req?.url || "unknown"}`);
+    console.error(`[${earlyErrorId}] Tipo: ${error?.constructor?.name || typeof error}`);
+    console.error(`[${earlyErrorId}] Mensagem: ${error?.message || String(error)}`);
+    console.error(`[${earlyErrorId}] Stack:`, error?.stack || "N/A");
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        requestId: requestId,
-        type: error.constructor.name
+        error: error?.message || "Erro desconhecido durante inicialização",
+        requestId: earlyErrorId,
+        type: error?.constructor?.name || "EarlyError",
+        hint: "Erro ocorreu antes dos logs detalhados. Verifique a configuração da Edge Function."
       }),
       { 
         status: 500, 
@@ -622,21 +752,33 @@ const PLAN_CREDITS: Record<string, number> = {
 };
 
 serve(async (req) => {
+  console.log(`[WEBHOOK] === NOVA REQUISIÇÃO WEBHOOK ===`);
+  console.log(`[WEBHOOK] Método: ${req.method}`);
+  console.log(`[WEBHOOK] URL: ${req.url}`);
+
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
+    console.error(`[WEBHOOK] ❌ Assinatura não encontrada`);
     return new Response(
       JSON.stringify({ error: "Assinatura não encontrada" }),
       { status: 400 }
     );
   }
 
+  console.log(`[WEBHOOK] Assinatura presente: ${signature.substring(0, 20)}...`);
+
   const body = await req.text();
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+
+  console.log(`[WEBHOOK] STRIPE_WEBHOOK_SECRET: ${webhookSecret ? "configurado" : "NÃO CONFIGURADO"}`);
+  console.log(`[WEBHOOK] Body length: ${body.length} caracteres`);
 
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret || "");
-  } catch (err) {
+    console.log(`[WEBHOOK] ✓ Evento validado: ${event.type}`);
+  } catch (err: any) {
+    console.error(`[WEBHOOK] ❌ Erro ao validar evento:`, err.message);
     return new Response(
       JSON.stringify({ error: `Webhook Error: ${err.message}` }),
       { status: 400 }
@@ -649,7 +791,14 @@ serve(async (req) => {
     const userId = session.metadata?.user_id || session.client_reference_id;
     const credits = planId ? PLAN_CREDITS[planId] : 0;
 
+    console.log(`[WEBHOOK] Processando checkout.session.completed`);
+    console.log(`[WEBHOOK] Session ID: ${session.id}`);
+    console.log(`[WEBHOOK] User ID: ${userId}`);
+    console.log(`[WEBHOOK] Plan ID: ${planId}`);
+    console.log(`[WEBHOOK] Créditos a adicionar: ${credits}`);
+
     if (!userId || !credits) {
+      console.error(`[WEBHOOK] ❌ Dados inválidos: userId=${userId}, credits=${credits}`);
       return new Response(
         JSON.stringify({ error: "Dados inválidos" }),
         { status: 400 }
@@ -661,23 +810,84 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Use service role key para bypass RLS
     );
 
+    // Buscar ou criar transação
+    const { data: existingTransaction } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("stripe_session_id", session.id)
+      .single();
+
+    if (!existingTransaction) {
+      console.log(`[WEBHOOK] Transação não encontrada, criando nova...`);
+      // Criar transação se não existir (pode acontecer se a Edge Function falhou)
+      const { error: createError } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          stripe_session_id: session.id,
+          plan_id: planId || "",
+          amount_total: session.amount_total || 0,
+          currency: session.currency || "brl",
+          status: "completed", // Já está completada
+        });
+
+      if (createError) {
+        console.error(`[WEBHOOK] ❌ Erro ao criar transação:`, createError);
+      } else {
+        console.log(`[WEBHOOK] ✓ Transação criada com sucesso`);
+      }
+    } else {
+      console.log(`[WEBHOOK] Transação encontrada, atualizando status...`);
+      // Atualizar status da transação existente
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({ status: "completed" })
+        .eq("stripe_session_id", session.id);
+
+      if (updateError) {
+        console.error(`[WEBHOOK] ❌ Erro ao atualizar transação:`, updateError);
+      } else {
+        console.log(`[WEBHOOK] ✓ Status da transação atualizado para 'completed'`);
+      }
+    }
+
     // Atualizar créditos do usuário
-    const { data: profile } = await supabase
+    console.log(`[WEBHOOK] Atualizando créditos do usuário...`);
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("credits")
       .eq("id", userId)
       .single();
 
-    await supabase
+    if (profileError) {
+      console.error(`[WEBHOOK] ❌ Erro ao buscar perfil:`, profileError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao buscar perfil do usuário" }),
+        { status: 500 }
+      );
+    }
+
+    const currentCredits = profile?.credits || 0;
+    const newCredits = currentCredits + credits;
+
+    console.log(`[WEBHOOK] Créditos atuais: ${currentCredits}`);
+    console.log(`[WEBHOOK] Créditos a adicionar: ${credits}`);
+    console.log(`[WEBHOOK] Novo total: ${newCredits}`);
+
+    const { error: updateCreditsError } = await supabase
       .from("profiles")
-      .update({ credits: (profile?.credits || 0) + credits })
+      .update({ credits: newCredits })
       .eq("id", userId);
 
-    // Atualizar status da transação
-    await supabase
-      .from("transactions")
-      .update({ status: "completed" })
-      .eq("stripe_session_id", session.id);
+    if (updateCreditsError) {
+      console.error(`[WEBHOOK] ❌ Erro ao atualizar créditos:`, updateCreditsError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao atualizar créditos" }),
+        { status: 500 }
+      );
+    }
+
+    console.log(`[WEBHOOK] ✓ Créditos atualizados com sucesso`);
   }
 
   return new Response(JSON.stringify({ received: true }), { status: 200 });

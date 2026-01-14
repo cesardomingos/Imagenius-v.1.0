@@ -8,9 +8,9 @@ interface PricingModalProps {
 }
 
 const PLANS: PricingPlan[] = [
-  { id: 'starter', name: 'Aprendiz', credits: 20, price: 'R$ 19,90' },
-  { id: 'genius', name: 'Gênio', credits: 100, price: 'R$ 69,90', popular: true },
-  { id: 'master', name: 'Imortal', credits: 300, price: 'R$ 149,90' },
+  { id: 'starter', name: 'Aprendiz', credits: 20, price: 'R$ 11,90' },
+  { id: 'genius', name: 'Gênio', credits: 100, price: 'R$ 19,90', popular: true },
+  { id: 'master', name: 'Imortal', credits: 300, price: 'R$ 59,90' },
 ];
 
 const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan }) => {

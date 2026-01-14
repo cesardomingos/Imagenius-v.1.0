@@ -25,11 +25,12 @@ function getSupabaseClient() {
 
 // Mapeamento de planos para valores em centavos (BRL)
 // Nota: O Stripe trabalha com valores em centavos (menor unidade da moeda)
-// Exemplo: 6990 centavos = R$ 69,90
+// Exemplo: 1990 centavos = R$ 19,90
+// IMPORTANTE: Estes valores devem corresponder aos da Edge Function (SUPABASE_SCHEMA.md)
 const PLAN_PRICES: Record<string, number> = {
-  'starter': 1990,   // R$ 19,90 (1990 centavos)
-  'genius': 6990,   // R$ 69,90 (6990 centavos)
-  'master': 14990,  // R$ 149,90 (14990 centavos)
+  'starter': 1190,   // R$ 11,90 (1190 centavos)
+  'genius': 1990,   // R$ 19,90 (1990 centavos)
+  'master': 5990,  // R$ 59,90 (5990 centavos)
 };
 
 let stripePromise: Promise<Stripe | null> | null = null;
