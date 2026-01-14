@@ -3,23 +3,38 @@ import React, { useEffect } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastProps {
   message: string;
   type: ToastType;
   isVisible: boolean;
   onClose: () => void;
   duration?: number;
+  action?: ToastAction;
+  persistent?: boolean;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose, duration = 5000 }) => {
+const Toast: React.FC<ToastProps> = ({ 
+  message, 
+  type, 
+  isVisible, 
+  onClose, 
+  duration = 5000,
+  action,
+  persistent = false
+}) => {
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && !persistent) {
       const timer = setTimeout(() => {
         onClose();
       }, duration);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, duration, onClose]);
+  }, [isVisible, duration, onClose, persistent]);
 
   if (!isVisible) return null;
 
@@ -56,19 +71,36 @@ const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose, durati
   return (
     <div className="fixed top-4 right-4 z-[200] animate-in slide-in-from-top-5 fade-in duration-300">
       <div
-        className={`${typeStyles[type]} px-6 py-4 rounded-xl shadow-2xl border-2 flex items-center gap-3 min-w-[300px] max-w-[500px]`}
+        className={`${typeStyles[type]} px-6 py-4 rounded-xl shadow-2xl border-2 flex flex-col gap-3 min-w-[300px] max-w-[500px]`}
       >
-        <div className="flex-shrink-0">{icons[type]}</div>
-        <p className="flex-1 font-bold text-sm">{message}</p>
-        <button
-          onClick={onClose}
-          className="flex-shrink-0 hover:opacity-70 transition-opacity"
-          aria-label="Fechar notificação"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0">{icons[type]}</div>
+          <p className="flex-1 font-bold text-sm">{message}</p>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            aria-label="Fechar notificação"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {action && (
+          <div className="flex justify-end pt-2 border-t border-white/20">
+            <button
+              onClick={() => {
+                action.onClick();
+                if (!persistent) {
+                  onClose();
+                }
+              }}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-bold text-xs transition-colors"
+            >
+              {action.label}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

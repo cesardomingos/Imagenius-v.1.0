@@ -75,7 +75,7 @@ export async function signIn(email: string, password: string): Promise<{ user: U
         const userProfile: UserProfile = {
           id: data.user.id,
           email: data.user.email || email,
-          credits: profile?.credits || 5,
+          credits: profile?.credits || 15,
           ...(profile && {
             full_name: profile.full_name,
             avatar_url: profile.avatar_url
@@ -84,7 +84,7 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 
         // Salvar no localStorage para cache
         localStorage.setItem('genius_user', JSON.stringify(userProfile));
-        localStorage.setItem('genius_credits', (profile?.credits || 5).toString());
+        localStorage.setItem('genius_credits', (profile?.credits || 15).toString());
 
         return { user: userProfile, error: null };
       }
@@ -95,10 +95,10 @@ export async function signIn(email: string, password: string): Promise<{ user: U
     const mockUser: UserProfile = {
       id: 'user-' + Date.now(),
       email,
-      credits: 5
+      credits: 15
     };
     localStorage.setItem('genius_user', JSON.stringify(mockUser));
-    localStorage.setItem('genius_credits', '5');
+    localStorage.setItem('genius_credits', '15');
     return { user: mockUser, error: null };
   } catch (error: any) {
     return { user: null, error: error.message || 'Erro ao fazer login' };
@@ -176,7 +176,7 @@ export async function signUp(
         const userProfile: UserProfile = {
           id: data.user.id,
           email: data.user.email || email,
-          credits: profile?.credits || 5,
+          credits: profile?.credits || 15,
           ...(profile && {
             full_name: profile.full_name,
             avatar_url: profile.avatar_url
@@ -185,7 +185,7 @@ export async function signUp(
 
         // Salvar no localStorage para cache
         localStorage.setItem('genius_user', JSON.stringify(userProfile));
-        localStorage.setItem('genius_credits', (profile?.credits || 5).toString());
+        localStorage.setItem('genius_credits', (profile?.credits || 15).toString());
 
         return { user: userProfile, error: null };
       }
@@ -196,10 +196,10 @@ export async function signUp(
     const mockUser: UserProfile = {
       id: 'user-' + Date.now(),
       email,
-      credits: 5
+      credits: 15
     };
     localStorage.setItem('genius_user', JSON.stringify(mockUser));
-    localStorage.setItem('genius_credits', '5');
+    localStorage.setItem('genius_credits', '15');
     return { user: mockUser, error: null };
   } catch (error: any) {
     return { user: null, error: error.message || 'Erro ao criar conta' };
@@ -304,7 +304,7 @@ export async function fetchUserCredits(): Promise<number> {
   
   // Usuário não autenticado - retornar créditos padrão
   const saved = localStorage.getItem('genius_credits');
-  return saved ? parseInt(saved) : 5;
+  return saved ? parseInt(saved) : 15;
 }
 
 /**

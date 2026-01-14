@@ -9,12 +9,14 @@ import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
 import Gallery from './components/Gallery';
 import CommunityGallery from './components/CommunityGallery';
+import ComparisonSection from './components/ComparisonSection';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
 import TutorialModal from './components/TutorialModal';
+import OnboardingWizard from './components/OnboardingWizard';
 import UseCasesModal from './components/UseCasesModal';
 import UserProfileModal from './components/UserProfile';
 import ResetPassword from './components/ResetPassword';
@@ -51,6 +53,9 @@ const App: React.FC = () => {
 
   // Tutorial State
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  
+  // Onboarding State
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   // Use Cases Modal State
   const [isUseCasesOpen, setIsUseCasesOpen] = useState(false);
@@ -248,7 +253,7 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await signOut();
     setCurrentUser(null);
-    setCredits(5); // Reset para créditos padrão
+    setCredits(15); // Reset para créditos padrão
     setGeneratedImages([]); // Limpar galeria ao fazer logout
     setHasNewAchievement(false);
   };
@@ -329,9 +334,12 @@ const App: React.FC = () => {
       const result = await suggestPrompts(referenceImages, validThemes);
       setSuggestions(result.map((text, idx) => ({ id: idx, text })));
       setStep('prompts');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Houve um erro no processo criativo. Tente novamente.");
+      setToast({
+        message: error.message || "Houve um erro no processo criativo. Tente novamente.",
+        type: 'error'
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -357,7 +365,7 @@ const App: React.FC = () => {
     for (let i = 0; i < selectedPrompts.length; i++) {
       setBatchStatus(prev => prev ? { ...prev, current: i + 1 } : null);
       try {
-        const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i]);
+        const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i], projectMode);
         if (imageUrl) {
           const success = await deductCredits(1);
           if (success) {
@@ -546,6 +554,26 @@ const App: React.FC = () => {
           />
         )}
 
+        {isOnboardingOpen && (
+          <OnboardingWizard
+            isOpen={isOnboardingOpen}
+            onComplete={() => {
+              setIsOnboardingOpen(false);
+              if (currentUser) {
+                setCredits(prev => prev + 5);
+                setToast({
+                  message: 'Bem-vindo! Você ganhou 5 créditos de boas-vindas! 🎁',
+                  type: 'success'
+                });
+              }
+            }}
+            onSkip={() => {
+              setIsOnboardingOpen(false);
+              localStorage.setItem('onboarding_completed', 'true');
+            }}
+          />
+        )}
+
         {isUseCasesOpen && (
           <UseCasesModal
             isOpen={isUseCasesOpen}
@@ -582,9 +610,23 @@ const App: React.FC = () => {
               <div className="space-y-16 animate-in fade-in duration-700">
                 <div className="text-center space-y-6">
                   <h2 className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter">
-                    Imagine. Crie. <span className="text-genius-gradient">Materialize.</span>
+                    Crie imagens que mantêm o mesmo estilo. <span className="text-genius-gradient">Sempre.</span>
                   </h2>
-                  <p className="text-slate-400 dark:text-slate-500 text-lg font-mono-genius uppercase tracking-[0.2em]">I'm a genius, and you are too</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-xl font-bold max-w-2xl mx-auto">
+                    A única IA que garante 100% de coerência visual entre todas as suas criações
+                  </p>
+                  <div className="flex items-center justify-center gap-4 pt-4">
+                    <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-full border border-indigo-200 dark:border-indigo-700">
+                      <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                        ✓ Coerência Visual Garantida
+                      </span>
+                    </div>
+                    <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-full border border-indigo-200 dark:border-indigo-700">
+                      <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                        🎁 15 Créditos Grátis
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -638,6 +680,9 @@ const App: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Seção de Comparação */}
+                <ComparisonSection />
+
                 {/* Galeria da Comunidade */}
                 <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
                   <CommunityGallery />
@@ -685,7 +730,13 @@ const App: React.FC = () => {
 
                   <ImageUploader 
                     onUpload={handleImageUpload} 
-                    label={projectMode === 'studio' && referenceImages.length > 0 ? "Adicionar Dimensões Visuais" : "Selecione a Imagem Âncora"} 
+                    label={projectMode === 'studio' && referenceImages.length > 0 ? "Adicionar Dimensões Visuais" : "Selecione a Imagem Âncora"}
+                    onError={(error) => {
+                      setToast({
+                        message: error,
+                        type: 'error'
+                      });
+                    }}
                   />
 
                   {referenceImages.length > 0 && (

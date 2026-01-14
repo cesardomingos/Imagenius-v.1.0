@@ -203,6 +203,11 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
             >
               {/* Imagem */}
               <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-700">
+                {art.author_email?.includes('exemplo') && (
+                  <div className="absolute top-2 left-2 z-10 bg-indigo-600 text-white text-[9px] font-black px-2 py-1 rounded-lg">
+                    EXEMPLO
+                  </div>
+                )}
                 <img
                   src={art.image_url}
                   alt={art.prompt}

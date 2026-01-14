@@ -1,101 +1,163 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
 import { ImageData } from "../types";
+import { getCurrentUser } from "./supabaseService";
+import { createClient } from "@supabase/supabase-js";
 
 /**
- * Obtém a API key do Gemini
+ * Obtém o cliente Supabase para fazer requisições autenticadas
  */
-function getApiKey(): string {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "GEMINI_API_KEY não configurada. Por favor, crie um arquivo .env na raiz do projeto com:\n" +
-      "GEMINI_API_KEY=sua_chave_aqui\n\n" +
-      "Obtenha sua chave em: https://aistudio.google.com/apikey"
-    );
+function getSupabaseClient() {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase não configurado');
   }
-  return apiKey;
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
 }
 
 /**
- * Sugere prompts baseados em uma ou mais imagens de referência usando o cérebro Pro.
+ * Retry logic com exponential backoff
  */
-export async function suggestPrompts(images: ImageData[], themes: string[]): Promise<string[]> {
-  const themesString = themes.join(", ");
-  const isMulti = images.length > 1;
-
-  const systemInstruction = `You are a world-class Visual Director and AI Artist. 
-  Your goal is to perform ${isMulti ? 'Idea Fusion (merging dimensions)' : 'DNA Preservation (style coherence)'}.
-  I'm a genius, and you are too. Treat every prompt as a masterpiece.
-  ${isMulti ? 'The first image is the DNA/Style anchor. Others are contextual/idea layers to be fused.' : 'Focus on the aesthetic DNA of the provided image to maintain absolute fidelity.'}
-  Themes: [${themesString}].
-  Output exactly 2 high-concept prompts per theme in JSON format.`;
-
-  const imageParts = images.map(img => ({
-    inlineData: { data: img.data, mimeType: img.mimeType }
-  }));
-
-  try {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: {
-        parts: [...imageParts, { text: systemInstruction }]
-      },
-      config: {
-        thinkingConfig: { thinkingBudget: 4000 }, // Dá tempo para o 'gênio' raciocinar
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
-        }
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Não retry em erros 4xx (client errors)
+      if (error.status >= 400 && error.status < 500 && error.status !== 429) {
+        throw error;
       }
-    });
-
-    return JSON.parse(response.text || "[]");
-  } catch (error) {
-    console.error("Error suggesting prompts:", error);
-    return themes.flatMap(t => [
-      `Variação sofisticada mantendo o DNA visual para: ${t}`,
-      `Expansão cinematográfica da estética original focada em: ${t}`
-    ]);
-  }
-}
-
-/**
- * Gera a imagem final com coerência multi-referencial.
- */
-export async function generateCoherentImage(images: ImageData[], prompt: string): Promise<string | null> {
-  const isMulti = images.length > 1;
-
-  const instruction = isMulti
-    ? `ARTISTIC ANCHOR: Image 1. CONTEXTUAL LAYERS: Images 2 to ${images.length}. 
-       Task: Create a masterpiece merging these dimensions based on: ${prompt}. 
-       I'm a genius, and you are too. Deliver excellence.`
-    : `Preserve the visual essence of the reference image. Apply: ${prompt}.`;
-
-  const imageParts = images.map(img => ({
-    inlineData: { data: img.data, mimeType: img.mimeType }
-  }));
-
-  try {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [...imageParts, { text: instruction }]
-      }
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+      
+      if (attempt < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
-    return null;
-  } catch (error) {
-    console.error("Error generating image:", error);
-    throw error;
   }
+  
+  throw lastError || new Error('Erro desconhecido após retries');
+}
+
+/**
+ * Sugere prompts baseados em uma ou mais imagens de referência usando Edge Function.
+ */
+export async function suggestPrompts(images: ImageData[], themes: string[]): Promise<string[]> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const edgeFunctionUrl = supabaseUrl 
+    ? `${supabaseUrl}/functions/v1/suggest-prompts`
+    : null;
+
+  if (!edgeFunctionUrl) {
+    throw new Error('Supabase não configurado. Edge Function não disponível.');
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.access_token) {
+    throw new Error('Usuário não autenticado. Faça login para continuar.');
+  }
+
+  return retryWithBackoff(async () => {
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+      },
+      body: JSON.stringify({
+        images: images.map(img => ({
+          data: img.data,
+          mimeType: img.mimeType
+        })),
+        themes
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      
+      if (response.status === 429) {
+        throw new Error('Limite de requisições excedido. Aguarde um momento antes de tentar novamente.');
+      }
+      
+      throw new Error(errorData.error || errorData.message || `Erro ao sugerir prompts: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.prompts || [];
+  });
+}
+
+/**
+ * Gera a imagem final com coerência multi-referencial usando Edge Function.
+ */
+export async function generateCoherentImage(
+  images: ImageData[], 
+  prompt: string,
+  mode: 'single' | 'studio' = 'single'
+): Promise<string | null> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const edgeFunctionUrl = supabaseUrl 
+    ? `${supabaseUrl}/functions/v1/generate-image`
+    : null;
+
+  if (!edgeFunctionUrl) {
+    throw new Error('Supabase não configurado. Edge Function não disponível.');
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.access_token) {
+    throw new Error('Usuário não autenticado. Faça login para continuar.');
+  }
+
+  return retryWithBackoff(async () => {
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+      },
+      body: JSON.stringify({
+        images: images.map(img => ({
+          data: img.data,
+          mimeType: img.mimeType
+        })),
+        prompt,
+        mode
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      
+      if (response.status === 429) {
+        throw new Error('Limite de requisições excedido. Aguarde um momento antes de tentar novamente.');
+      }
+      
+      throw new Error(errorData.error || errorData.message || `Erro ao gerar imagem: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.imageUrl || null;
+  });
 }
