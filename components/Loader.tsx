@@ -26,15 +26,15 @@ const Loader: React.FC<LoaderProps> = ({ message = 'Iniciando raciocínio...' })
       </div>
       
       <div className="text-center space-y-4">
-        <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
-          I'm a genius, and <span className="text-indigo-600">you are too.</span>
+        <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
+          I'm a genius, and <span className="text-indigo-600 dark:text-indigo-400">you are too.</span>
         </h3>
         <div className="flex items-center justify-center gap-3">
-            <span className="w-8 h-[1px] bg-slate-200"></span>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">
+            <span className="w-8 h-[1px] bg-slate-200 dark:bg-slate-700"></span>
+            <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">
                 {message}
             </p>
-            <span className="w-8 h-[1px] bg-slate-200"></span>
+            <span className="w-8 h-[1px] bg-slate-200 dark:bg-slate-700"></span>
         </div>
       </div>
     </div>

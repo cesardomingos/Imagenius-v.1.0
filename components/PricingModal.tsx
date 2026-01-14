@@ -42,10 +42,10 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-10 overflow-y-auto">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
       
-      <div className="relative bg-white w-full max-w-5xl rounded-2xl sm:rounded-[2.5rem] lg:rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 my-auto">
+      <div className="relative bg-white dark:bg-slate-800 w-full max-w-5xl rounded-2xl sm:rounded-[2.5rem] lg:rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 my-auto">
         {/* Botão de fechar - responsivo */}
         <div className="absolute top-3 right-3 sm:top-6 sm:right-6 lg:top-8 lg:right-8 z-10">
-           <button onClick={onClose} className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl sm:rounded-2xl transition-all">
+           <button onClick={onClose} className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 rounded-xl sm:rounded-2xl transition-all">
               <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
            </button>
         </div>
@@ -80,7 +80,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
           </div>
 
           {/* Opções de Planos */}
-          <div className="lg:col-span-8 p-4 sm:p-6 md:p-8 lg:p-14 bg-white">
+          <div className="lg:col-span-8 p-4 sm:p-6 md:p-8 lg:p-14 bg-white dark:bg-slate-800">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
               {PLANS.map((plan) => {
                 const isSelected = selectedPlanId === plan.id;
@@ -96,8 +96,8 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
                       : 'cursor-pointer group'
                   } ${
                     plan.popular 
-                      ? 'border-indigo-600 bg-indigo-50/10 shadow-xl shadow-indigo-100 sm:col-span-2 lg:col-span-1' 
-                      : 'border-slate-100 hover:border-indigo-200'
+                      ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/10 dark:bg-indigo-900/20 shadow-xl shadow-indigo-100 dark:shadow-indigo-900/30 sm:col-span-2 lg:col-span-1' 
+                      : 'border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600'
                   }`}
                 >
                   {plan.popular && (
@@ -107,15 +107,15 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
                   )}
 
                   <div className="space-y-3 sm:space-y-4">
-                    <h3 className="text-base sm:text-lg font-black text-slate-900">{plan.name}</h3>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{plan.name}</h3>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900">{plan.credits}</span>
-                      <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase">Imagens</span>
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{plan.credits}</span>
+                      <span className="text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Imagens</span>
                     </div>
                   </div>
 
                   <div className="mt-6 sm:mt-8 md:mt-10 space-y-3 sm:space-y-4">
-                    <div className="text-xl sm:text-2xl font-black text-slate-900">{plan.price}</div>
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{plan.price}</div>
                     <button 
                       disabled={isDisabled}
                       className={`w-full py-3 sm:py-4 rounded-xl sm:rounded-2xl font-black text-[9px] sm:text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
@@ -143,14 +143,14 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
               )})}
             </div>
 
-            <div className="mt-6 sm:mt-8 md:mt-12 flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 md:p-8 bg-slate-50 rounded-xl sm:rounded-2xl gap-4 sm:gap-6">
+            <div className="mt-6 sm:mt-8 md:mt-12 flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 md:p-8 bg-slate-50 dark:bg-slate-900/50 rounded-xl sm:rounded-2xl gap-4 sm:gap-6">
                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-lg sm:rounded-xl shadow-sm flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl shadow-sm flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   </div>
                   <div>
-                    <p className="text-[10px] sm:text-xs font-black text-slate-900 uppercase tracking-widest">Ambiente Blindado</p>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium">Suas informações estão protegidas por criptografia de ponta.</p>
+                    <p className="text-[10px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Ambiente Blindado</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500 font-medium">Suas informações estão protegidas por criptografia de ponta.</p>
                   </div>
                </div>
                <div className="flex items-center gap-3 sm:gap-4 grayscale opacity-40 w-full sm:w-auto justify-center sm:justify-end">

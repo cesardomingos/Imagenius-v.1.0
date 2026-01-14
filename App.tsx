@@ -382,7 +382,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fcfdff] text-slate-900 selection:bg-indigo-100">
+    <div className="min-h-screen flex flex-col bg-[#fcfdff] dark:bg-slate-900 text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-900 transition-colors duration-300">
       <Header 
         onReset={resetApp} 
         hasImages={generatedImages.length > 0} 
@@ -457,15 +457,15 @@ const App: React.FC = () => {
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (
-          <div className="bg-white rounded-[3rem] shadow-2xl shadow-indigo-500/5 border border-slate-100 p-8 md:p-14 transition-all">
+          <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-8 md:p-14 transition-all">
             
             {step === 'mode_selection' && (
               <div className="space-y-16 animate-in fade-in duration-700">
                 <div className="text-center space-y-6">
-                  <h2 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter">
+                  <h2 className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter">
                     Imagine. Crie. <span className="text-genius-gradient">Materialize.</span>
                   </h2>
-                  <p className="text-slate-400 text-lg font-mono-genius uppercase tracking-[0.2em]">I'm a genius, and you are too</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-lg font-mono-genius uppercase tracking-[0.2em]">I'm a genius, and you are too</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -473,7 +473,7 @@ const App: React.FC = () => {
                   <div className="md:col-span-2 flex justify-center">
                     <button
                       onClick={() => setIsTutorialOpen(true)}
-                      className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-200 hover:border-indigo-300 text-indigo-700 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                      className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border-2 border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
                     >
                       <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -486,29 +486,29 @@ const App: React.FC = () => {
                   </div>
                   <button 
                     onClick={() => handleModeSelection('single')}
-                    className="group relative p-10 rounded-[2.5rem] bg-slate-50 border-2 border-transparent hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100"
+                    className="group relative p-10 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 border-2 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20"
                   >
-                    <div className="w-16 h-16 bg-white rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
-                      <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <div className="w-16 h-16 bg-white dark:bg-slate-700 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
+                      <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 mb-3">Estética Coerente</h3>
-                    <p className="text-slate-500 font-medium leading-relaxed">Fidelidade absoluta a partir de uma única imagem de referência.</p>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Estética Coerente</h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Fidelidade absoluta a partir de uma única imagem de referência.</p>
                   </button>
 
                   <button 
                     onClick={() => handleModeSelection('studio')}
-                    className="group relative p-10 rounded-[2.5rem] bg-slate-900 border-2 border-transparent hover:border-indigo-400 transition-all text-left hover:shadow-2xl hover:shadow-indigo-500/20"
+                    className="group relative p-10 rounded-[2.5rem] bg-slate-900 dark:bg-slate-950 border-2 border-transparent hover:border-indigo-400 dark:hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-500/20 dark:hover:shadow-indigo-500/30"
                   >
-                    <div className="w-16 h-16 bg-white/10 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
-                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    <div className="w-16 h-16 bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
+                      <svg className="w-8 h-8 text-white dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                     </div>
-                    <h3 className="text-2xl font-black text-white mb-3">Fusão Criativa</h3>
-                    <p className="text-slate-400 font-medium leading-relaxed">Misture até 5 dimensões visuais: 1 Estilo + 4 Contextos.</p>
+                    <h3 className="text-2xl font-black text-white dark:text-slate-100 mb-3">Fusão Criativa</h3>
+                    <p className="text-slate-400 dark:text-slate-300 font-medium leading-relaxed">Misture até 5 dimensões visuais: 1 Estilo + 4 Contextos.</p>
                   </button>
                 </div>
 
                 {/* Galeria da Comunidade */}
-                <div className="pt-16 mt-16 border-t border-slate-200">
+                <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
                   <CommunityGallery />
                 </div>
               </div>
@@ -517,12 +517,12 @@ const App: React.FC = () => {
             {step === 'upload' && (
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 <div className="flex items-center gap-6">
-                  <button onClick={() => setStep('mode_selection')} className="w-14 h-14 flex items-center justify-center hover:bg-slate-50 rounded-2xl transition-all border border-slate-100 text-slate-400 hover:text-indigo-600">
+                  <button onClick={() => setStep('mode_selection')} className="w-14 h-14 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div className="space-y-1">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Defina sua Base</h2>
-                    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Enviando Referência Visual</p>
+                    <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Defina sua Base</h2>
+                    <p className="text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em]">Enviando Referência Visual</p>
                   </div>
                 </div>
 
@@ -530,7 +530,7 @@ const App: React.FC = () => {
                   {projectMode === 'studio' && referenceImages.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
                       {referenceImages.map((img, idx) => (
-                        <div key={idx} className="relative group aspect-square rounded-[1.5rem] overflow-hidden border-2 border-slate-100 shadow-sm">
+                        <div key={idx} className="relative group aspect-square rounded-[1.5rem] overflow-hidden border-2 border-slate-100 dark:border-slate-700 shadow-sm">
                           <img src={`data:${img.mimeType};base64,${img.data}`} className="w-full h-full object-cover" />
                           <div className={`absolute top-3 left-3 px-2 py-1 text-white text-[9px] font-black rounded-lg backdrop-blur-md ${idx === 0 ? 'bg-indigo-600/80' : 'bg-black/50'}`}>
                             {idx === 0 ? 'ESTILO' : `CONTEXTO ${idx}`}
@@ -544,9 +544,9 @@ const App: React.FC = () => {
                         </div>
                       ))}
                       {referenceImages.length < 5 && (
-                        <div className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[1.5rem] bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer group" onClick={() => document.getElementById('file-upload-input')?.click()}>
-                           <svg className="w-10 h-10 text-slate-300 group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-                           <span className="text-[9px] font-black text-slate-400 mt-4 uppercase tracking-widest">Adicionar</span>
+                        <div className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-[1.5rem] bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all cursor-pointer group" onClick={() => document.getElementById('file-upload-input')?.click()}>
+                           <svg className="w-10 h-10 text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 dark:group-hover:text-indigo-500 group-hover:scale-110 transition-all duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
+                           <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 mt-4 uppercase tracking-widest">Adicionar</span>
                         </div>
                       )}
                     </div>
@@ -561,7 +561,7 @@ const App: React.FC = () => {
                     <div className="pt-10 flex justify-center">
                       <button 
                         onClick={() => setStep('themes')}
-                        className="bg-slate-900 hover:bg-indigo-600 text-white font-black py-5 px-16 rounded-[1.5rem] transition-all shadow-2xl text-xl flex items-center gap-4 transform hover:-translate-y-1"
+                        className="bg-slate-900 dark:bg-slate-800 hover:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-black py-5 px-16 rounded-[1.5rem] transition-all shadow-2xl text-xl flex items-center gap-4 transform hover:-translate-y-1"
                       >
                         Materializar Ideias
                         <svg className="w-6 h-6 animate-bounce-x" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -575,28 +575,28 @@ const App: React.FC = () => {
             {step === 'themes' && (
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 <div className="flex items-center gap-6">
-                  <button onClick={() => setStep('upload')} className="w-14 h-14 flex items-center justify-center hover:bg-slate-50 rounded-2xl transition-all border border-slate-100 text-slate-400 hover:text-indigo-600">
+                  <button onClick={() => setStep('upload')} className="w-14 h-14 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div className="space-y-1">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Mapeamento Genial</h2>
-                    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Transformando Conceitos em Visão</p>
+                    <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Mapeamento Genial</h2>
+                    <p className="text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em]">Transformando Conceitos em Visão</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-14">
                   <div className="md:col-span-4 space-y-6">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Referências Ativas</p>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">Referências Ativas</p>
                     <div className="grid grid-cols-2 gap-3">
                       {referenceImages.map((img, idx) => (
-                        <div key={idx} className={`relative rounded-2xl overflow-hidden shadow-xl border-2 transition-transform hover:scale-105 ${idx === 0 ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-white'}`}>
+                        <div key={idx} className={`relative rounded-2xl overflow-hidden shadow-xl border-2 transition-transform hover:scale-105 ${idx === 0 ? 'border-indigo-500 dark:border-indigo-400 ring-4 ring-indigo-50 dark:ring-indigo-900/30' : 'border-white dark:border-slate-700'}`}>
                            <img src={`data:${img.mimeType};base64,${img.data}`} className="w-full h-24 object-cover" />
                            <div className="absolute inset-0 bg-black/10"></div>
                         </div>
                       ))}
                     </div>
-                    <div className="p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100">
-                        <p className="text-[11px] font-bold text-indigo-900 leading-relaxed italic">
+                    <div className="p-6 bg-indigo-50/50 dark:bg-indigo-900/30 rounded-3xl border border-indigo-100 dark:border-indigo-800">
+                        <p className="text-[11px] font-bold text-indigo-900 dark:text-indigo-200 leading-relaxed italic">
                             O Gênio irá fundir o estilo da primeira imagem com os temas abaixo, usando as outras imagens como guias de contexto.
                         </p>
                     </div>
@@ -611,20 +611,20 @@ const App: React.FC = () => {
                             value={theme}
                             onChange={(e) => updateThemeValue(idx, e.target.value)}
                             placeholder={`Descreva um novo cenário para este estilo...`}
-                            className="flex-grow p-6 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none transition-all text-black font-bold placeholder:text-slate-300"
+                            className="flex-grow p-6 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[1.5rem] focus:ring-8 focus:ring-indigo-500/5 dark:focus:ring-indigo-500/10 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none transition-all text-black dark:text-white font-bold placeholder:text-slate-300 dark:placeholder:text-slate-500"
                           />
-                          <button onClick={() => removeThemeField(idx)} className="w-16 h-16 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                          <button onClick={() => removeThemeField(idx)} className="w-16 h-16 flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-2xl transition-all">
                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                           </button>
                         </div>
                       ))}
                     </div>
-                    <button onClick={addThemeField} className="flex items-center gap-3 text-indigo-600 hover:text-indigo-800 font-black text-sm px-6 py-4 bg-indigo-50 rounded-2xl transition-all hover:scale-105 active:scale-95">
+                    <button onClick={addThemeField} className="flex items-center gap-3 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-black text-sm px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl transition-all hover:scale-105 active:scale-95">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
                       Adicionar Nova Camada de Ideia
                     </button>
-                    <div className="pt-10 border-t border-slate-50">
-                      <button onClick={handleSuggestPrompts} disabled={themes.every(t => t.trim() === '')} className="w-full bg-slate-900 hover:bg-indigo-600 text-white font-black py-6 rounded-[2rem] transition-all shadow-2xl text-xl tracking-tight uppercase group">
+                    <div className="pt-10 border-t border-slate-50 dark:border-slate-700">
+                      <button onClick={handleSuggestPrompts} disabled={themes.every(t => t.trim() === '')} className="w-full bg-slate-900 dark:bg-slate-800 hover:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-black py-6 rounded-[2rem] transition-all shadow-2xl text-xl tracking-tight uppercase group">
                          Projetar Sugestões <span className="text-indigo-400 group-hover:text-white transition-colors italic ml-2">by Imagenius</span>
                       </button>
                     </div>
@@ -680,7 +680,7 @@ const App: React.FC = () => {
                         Atualizar
                       </button>
                     )}
-                    <button onClick={resetApp} className="bg-slate-900 text-white hover:bg-indigo-600 px-10 py-5 rounded-[1.5rem] font-black transition-all shadow-2xl hover:-translate-y-1 active:scale-95">Iniciar Nova Obra</button>
+                    <button onClick={resetApp} className="bg-slate-900 dark:bg-slate-800 text-white hover:bg-indigo-600 dark:hover:bg-indigo-700 px-10 py-5 rounded-[1.5rem] font-black transition-all shadow-2xl hover:-translate-y-1 active:scale-95">Iniciar Nova Obra</button>
                   </div>
                 </div>
                 <Gallery 
@@ -694,7 +694,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-white/50 border-t border-slate-100 py-20 mt-20">
+      <footer className="bg-white/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 py-20 mt-20">
         <div className="container mx-auto px-4 text-center space-y-6">
           <div className="flex items-center justify-center gap-6 opacity-80 group grayscale hover:grayscale-0 transition-all duration-700">
              <div className="relative w-10 h-10 flex items-center justify-center">
@@ -704,27 +704,27 @@ const App: React.FC = () => {
              </div>
              <span className="font-black text-3xl tracking-tighter">Imagenius</span>
           </div>
-          <p className="text-slate-400 text-[10px] font-mono-genius uppercase tracking-[0.5em]">I'm a genius, and you are too</p>
+          <p className="text-slate-400 dark:text-slate-500 text-[10px] font-mono-genius uppercase tracking-[0.5em]">I'm a genius, and you are too</p>
           
           {/* Legal Links */}
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
             <button
               onClick={() => setShowPrivacyPolicy(true)}
-              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider"
+              className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-wider"
             >
               Política de Privacidade
             </button>
-            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">•</span>
             <button
               onClick={() => setShowTermsOfService(true)}
-              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider"
+              className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-wider"
             >
               Termos de Uso
             </button>
           </div>
 
           <div className="pt-6 flex justify-center gap-12">
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Todos os direitos reservados</span>
+              <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">Todos os direitos reservados</span>
           </div>
         </div>
       </footer>

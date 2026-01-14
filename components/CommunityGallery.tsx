@@ -123,7 +123,7 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-slate-100 rounded-2xl aspect-square animate-pulse" />
+            <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl aspect-square animate-pulse" />
           ))}
         </div>
       </div>
@@ -174,10 +174,10 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
       {/* Header da Galeria Comunitária */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+          <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
             Galeria da <span className="text-genius-gradient">Comunidade</span>
           </h3>
-          <p className="text-sm text-slate-500 font-medium">
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
             Obras compartilhadas por outros gênios da comunidade
           </p>
         </div>
@@ -199,10 +199,10 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
           return (
             <div
               key={art.id}
-              className="group relative bg-white rounded-2xl overflow-hidden border border-slate-200 transition-all hover:shadow-2xl hover:-translate-y-1 animate-in zoom-in-95 duration-500"
+              className="group relative bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 transition-all hover:shadow-2xl dark:hover:shadow-slate-900/50 hover:-translate-y-1 animate-in zoom-in-95 duration-500"
             >
               {/* Imagem */}
-              <div className="relative aspect-square overflow-hidden bg-slate-100">
+              <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-700">
                 <img
                   src={art.image_url}
                   alt={art.prompt}
@@ -228,20 +228,20 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
                 {/* Autor e Data */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center border-2 border-indigo-200">
-                      <span className="text-xs font-black text-indigo-600">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center border-2 border-indigo-200 dark:border-indigo-700">
+                      <span className="text-xs font-black text-indigo-600 dark:text-indigo-300">
                         {authorName.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div>
-                      <p className="text-xs font-black text-slate-900">{authorName}</p>
-                      <p className="text-[10px] text-slate-400">{formatDate(art.created_at)}</p>
+                      <p className="text-xs font-black text-slate-900 dark:text-white">{authorName}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">{formatDate(art.created_at)}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Prompt (truncado) */}
-                <p className="text-xs text-slate-600 line-clamp-2 italic leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 italic leading-relaxed">
                   "{art.prompt}"
                 </p>
 

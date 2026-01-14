@@ -41,8 +41,8 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
               onClick={() => toggleSelection(s.id)}
               className={`group relative p-8 rounded-[2rem] border-2 transition-all duration-300 flex flex-col cursor-pointer ${
                 isSelected 
-                  ? 'border-indigo-600 bg-indigo-50/50 shadow-2xl shadow-indigo-200 ring-4 ring-indigo-50' 
-                  : 'border-slate-100 hover:border-indigo-200 bg-white hover:shadow-xl'
+                  ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/30 shadow-2xl shadow-indigo-200 dark:shadow-indigo-900/30 ring-4 ring-indigo-50 dark:ring-indigo-900/20' 
+                  : 'border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-600 bg-white dark:bg-slate-800 hover:shadow-xl'
               }`}
             >
               <div className="flex items-center justify-between mb-6">
@@ -50,7 +50,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
                     <span className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-black ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
                         {s.id + 1}
                     </span>
-                    <span className={`text-[11px] font-black uppercase tracking-[0.2em] ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    <span className={`text-[11px] font-black uppercase tracking-[0.2em] ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
                     Exploração Inteligente
                     </span>
                 </div>
@@ -73,18 +73,18 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
                 onChange={(e) => handleEdit(s.id, e.target.value)}
                 className={`w-full p-5 text-sm leading-relaxed rounded-2xl outline-none transition-all min-h-[140px] resize-none font-bold ${
                   isSelected 
-                    ? 'bg-white border border-indigo-200 text-black shadow-inner' 
-                    : 'bg-slate-50 border border-transparent text-slate-900 focus:bg-white focus:border-indigo-100'
+                    ? 'bg-white dark:bg-slate-700 border border-indigo-200 dark:border-indigo-700 text-black dark:text-white shadow-inner' 
+                    : 'bg-slate-50 dark:bg-slate-900/50 border border-transparent text-slate-900 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:border-indigo-100 dark:focus:border-indigo-700'
                 }`}
                 placeholder="Ajuste os detalhes se preferir..."
               />
               
               <div className="mt-5 flex items-center justify-between">
-                <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600' : 'text-slate-300'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-300 dark:text-slate-600'}`}>
                     {isSelected ? '✓ Selecionado' : 'Pronto para criar'}
                 </span>
                 {!isSelected && (
-                    <span className="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Clique para adicionar</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Clique para adicionar</span>
                 )}
               </div>
             </div>
@@ -93,10 +93,10 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
       </div>
 
       <div className="sticky bottom-6 left-0 right-0 pt-8 z-20">
-        <div className="bg-white rounded-[1.75rem] p-2 shadow-2xl border-2 border-slate-100">
+        <div className="bg-white dark:bg-slate-800 rounded-[1.75rem] p-2 shadow-2xl border-2 border-slate-100 dark:border-slate-700">
           {/* Informação de créditos */}
           {selectedIds.length > 0 && (
-            <div className="px-6 py-3 mb-2 bg-indigo-50 rounded-xl border border-indigo-100">
+            <div className="px-6 py-3 mb-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl border border-indigo-100 dark:border-indigo-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
@@ -105,26 +105,26 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                    <p className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">
                       Créditos a gastar
                     </p>
-                    <p className="text-lg font-black text-indigo-600">
+                    <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">
                       {selectedIds.length} {selectedIds.length === 1 ? 'crédito' : 'créditos'}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Disponível
                   </p>
-                  <p className={`text-lg font-black ${credits >= selectedIds.length ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-lg font-black ${credits >= selectedIds.length ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {credits} {credits === 1 ? 'crédito' : 'créditos'}
                   </p>
                 </div>
               </div>
               {credits < selectedIds.length && (
-                <div className="mt-2 pt-2 border-t border-red-200">
-                  <p className="text-xs font-bold text-red-600 flex items-center gap-2">
+                <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                  <p className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
@@ -138,7 +138,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
           <button
             onClick={handleGenerateClick}
             disabled={selectedIds.length === 0 || credits < selectedIds.length}
-            className="w-full bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-200 disabled:cursor-not-allowed disabled:text-slate-400 text-white font-black py-6 px-10 rounded-[1.5rem] transition-all shadow-xl flex items-center justify-center gap-6 transform active:scale-[0.98] group"
+            className="w-full bg-slate-900 dark:bg-slate-800 hover:bg-indigo-600 dark:hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-500 text-white font-black py-6 px-10 rounded-[1.5rem] transition-all shadow-xl flex items-center justify-center gap-6 transform active:scale-[0.98] group"
           >
             <div className="flex items-center justify-center bg-white/10 w-10 h-10 rounded-xl group-hover:bg-white/20 transition-colors">
               <span className="text-white text-xl">{selectedIds.length}</span>

@@ -65,23 +65,23 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-900">Tutorial: Estética Coerente</h2>
-              <p className="text-sm text-slate-500">Passo {currentStep + 1} de {steps.length}</p>
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Tutorial: Estética Coerente</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Passo {currentStep + 1} de {steps.length}</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
+            className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -94,11 +94,11 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
           <div className="space-y-6">
             {/* Step Title */}
             <div>
-              <h3 className="text-3xl font-black text-slate-900 mb-3">{currentStepData.title}</h3>
-              <p className="text-lg text-slate-600 leading-relaxed">{currentStepData.description}</p>
+              <h3 className="text-3xl font-black text-slate-900 dark:text-white mb-3">{currentStepData.title}</h3>
+              <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed">{currentStepData.description}</p>
               {currentStepData.tip && (
-                <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                  <p className="text-sm font-bold text-indigo-900">{currentStepData.tip}</p>
+                <div className="mt-4 p-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-xl">
+                  <p className="text-sm font-bold text-indigo-900 dark:text-indigo-200">{currentStepData.tip}</p>
                 </div>
               )}
             </div>
@@ -106,7 +106,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
             {/* Images */}
             <div className="space-y-4">
               {currentStepData.image ? (
-                <div className="relative rounded-2xl overflow-hidden border-2 border-slate-200 shadow-lg">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 shadow-lg">
                   <img
                     src={currentStepData.image}
                     alt={currentStepData.imageAlt}
@@ -119,7 +119,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
               ) : currentStepData.images ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {currentStepData.images.map((img, idx) => (
-                    <div key={idx} className="relative rounded-2xl overflow-hidden border-2 border-slate-200 shadow-lg">
+                    <div key={idx} className="relative rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 shadow-lg">
                       <img
                         src={img.src}
                         alt={img.alt}
@@ -137,7 +137,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer with Navigation */}
-        <div className="p-6 border-t border-slate-200 flex items-center justify-between">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
           {/* Progress Indicators */}
           <div className="flex items-center gap-2">
             {steps.map((_, index) => (
@@ -146,8 +146,8 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
                 onClick={() => setCurrentStep(index)}
                 className={`w-2 h-2 rounded-full transition-all ${
                   index === currentStep
-                    ? 'bg-indigo-600 w-8'
-                    : 'bg-slate-300 hover:bg-slate-400'
+                    ? 'bg-indigo-600 dark:bg-indigo-400 w-8'
+                    : 'bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500'
                 }`}
                 aria-label={`Ir para passo ${index + 1}`}
               />
@@ -159,7 +159,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
             {!isFirstStep && (
               <button
                 onClick={handlePrevious}
-                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all flex items-center gap-2"
+                className="px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -169,7 +169,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
             )}
             <button
               onClick={handleNext}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all flex items-center gap-2"
             >
               {isLastStep ? 'Finalizar' : 'Próximo'}
               {!isLastStep && (

@@ -61,19 +61,19 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onSuccess }) => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-black text-slate-900 mb-2">Senha Redefinida!</h2>
-          <p className="text-slate-600 mb-6">
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Senha Redefinida!</h2>
+          <p className="text-slate-600 dark:text-slate-300 mb-6">
             Sua senha foi redefinida com sucesso. Você pode fazer login agora.
           </p>
           {onSuccess && (
-            <p className="text-sm text-slate-500">Redirecionando...</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Redirecionando...</p>
           )}
         </div>
       </div>
@@ -81,20 +81,20 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onSuccess }) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-md w-full">
-        <h2 className="text-3xl font-black text-slate-900 mb-2">Redefinir Senha</h2>
-        <p className="text-slate-600 mb-6">Digite sua nova senha abaixo.</p>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-8 max-w-md w-full">
+        <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2">Redefinir Senha</h2>
+        <p className="text-slate-600 dark:text-slate-300 mb-6">Digite sua nova senha abaixo.</p>
 
         {error && (
-          <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl mb-4">
-            <p className="text-sm font-bold text-red-600">{error}</p>
+          <div className="p-4 bg-red-50 dark:bg-red-900/30 border-2 border-red-200 dark:border-red-800 rounded-xl mb-4">
+            <p className="text-sm font-bold text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
               Nova Senha
             </label>
             <input
@@ -103,13 +103,13 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onSuccess }) => {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               placeholder="••••••••"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
               Confirmar Nova Senha
             </label>
             <input
@@ -118,7 +118,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onSuccess }) => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none transition-all text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               placeholder="••••••••"
             />
           </div>
@@ -126,7 +126,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-black rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Redefinindo...' : 'Redefinir Senha'}
           </button>

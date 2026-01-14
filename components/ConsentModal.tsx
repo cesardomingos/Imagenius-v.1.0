@@ -61,9 +61,9 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center flex-shrink-0">
               <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,10 +71,10 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
               </svg>
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-900">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white">
                 {isPolicyUpdate ? 'Políticas Atualizadas' : 'Consentimento de Privacidade'}
               </h2>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
                 {isPolicyUpdate 
                   ? 'Nossas políticas foram atualizadas. Por favor, revise e aceite os novos termos.'
                   : 'Precisamos do seu consentimento para continuar'}
