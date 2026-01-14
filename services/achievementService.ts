@@ -54,21 +54,20 @@ export async function getUserAchievementLevel(achievementId: AchievementId): Pro
     const user = await getCurrentUser();
     if (!user) return null;
 
-    const { data, error } = await supabase
+    const { data: achievementsData, error } = await supabase
       .from('user_achievements')
       .select('level')
       .eq('user_id', user.id)
       .eq('achievement_id', achievementId)
       .order('unlocked_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
     if (error && error.code !== 'PGRST116') {
       console.error('Erro ao buscar nível do achievement:', error);
       return null;
     }
 
-    return data?.level || null;
+    return achievementsData && achievementsData.length > 0 ? achievementsData[0].level as AchievementLevel : null;
   } catch (error) {
     console.error('Erro ao buscar nível do achievement:', error);
     return null;
@@ -103,14 +102,20 @@ export async function unlockAchievement(
     const finalLevel = achievement.isUnique ? 'gold' : level;
 
     // Verificar se já possui a conquista
-    const { data: existing } = await supabase
+    const { data: existingData, error: existingError } = await supabase
       .from('user_achievements')
       .select('*')
       .eq('user_id', user.id)
       .eq('achievement_id', achievementId)
       .order('unlocked_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
+
+    // Ignorar erro se não houver resultado (PGRST116 = nenhum resultado)
+    if (existingError && existingError.code !== 'PGRST116') {
+      console.error('Erro ao verificar achievement existente:', existingError);
+    }
+
+    const existing = existingData && existingData.length > 0 ? existingData[0] : null;
 
     let isUpgrade = false;
     let shouldUpgrade = false;
@@ -208,12 +213,18 @@ async function addCreditsReward(amount: number): Promise<void> {
     const user = await getCurrentUser();
     if (!user) return;
 
-    const { data: profile } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
       .eq('id', user.id)
-      .single();
+      .limit(1);
 
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('Erro ao buscar perfil:', profileError);
+      return;
+    }
+
+    const profile = profileData && profileData.length > 0 ? profileData[0] : null;
     if (profile) {
       const newCredits = (profile.credits || 0) + amount;
       await supabase
@@ -300,15 +311,20 @@ export async function getAchievementProgress(achievementId: AchievementId): Prom
     }
 
     // Buscar achievement do usuário
-    const { data: userAchievement } = await supabase
+    const { data: userAchievementsData, error } = await supabase
       .from('user_achievements')
       .select('*')
       .eq('user_id', user.id)
       .eq('achievement_id', achievementId)
       .order('unlocked_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
+    // Se houver erro e não for "nenhum resultado", logar
+    if (error && error.code !== 'PGRST116') {
+      console.error('Erro ao buscar achievement:', error);
+    }
+
+    const userAchievement = userAchievementsData && userAchievementsData.length > 0 ? userAchievementsData[0] : null;
     const currentLevel = userAchievement?.level as AchievementLevel | null;
     const currentProgress = userAchievement?.progress || 0;
     const isUnlocked = !!userAchievement;

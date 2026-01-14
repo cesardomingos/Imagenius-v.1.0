@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { getCurrentUser, updateUserProfile, deleteUserAccount, resetPassword } from '../services/supabaseService';
 import { fetchUserInvoices } from '../services/stripeService';
 import { getReferralLink, copyReferralLink, getReferralStats } from '../services/referralService';
+import { getUserAchievements } from '../services/achievementService';
 import { UserProfile as UserProfileType } from '../types';
+import { UserAchievement, AchievementLevel, ACHIEVEMENTS } from '../types/achievements';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import AchievementsGallery from './AchievementsGallery';
@@ -42,14 +44,41 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
   const [referralStats, setReferralStats] = useState<{ totalReferrals: number; totalCreditsEarned: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       loadUserData();
       loadInvoices();
       loadReferralData();
+      loadUserAchievements();
     }
   }, [isOpen]);
+
+  const loadUserAchievements = async () => {
+    try {
+      const achievements = await getUserAchievements();
+      setUserAchievements(achievements);
+    } catch (error) {
+      console.error('Erro ao carregar achievements:', error);
+    }
+  };
+
+  // Função para obter os 3 melhores achievements (priorizando nível e depois data)
+  const getTopAchievements = (): UserAchievement[] => {
+    const levelOrder: Record<AchievementLevel, number> = { gold: 3, silver: 2, bronze: 1 };
+    
+    return [...userAchievements]
+      .sort((a, b) => {
+        // Primeiro ordena por nível (gold > silver > bronze)
+        const levelDiff = levelOrder[b.level] - levelOrder[a.level];
+        if (levelDiff !== 0) return levelDiff;
+        
+        // Se o nível for igual, ordena por data (mais recente primeiro)
+        return new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime();
+      })
+      .slice(0, 3);
+  };
 
   const loadReferralData = async () => {
     const link = await getReferralLink();
@@ -257,14 +286,11 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
               <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
             </div>
           ) : activeTab === 'achievements' ? (
-            <div className="flex items-center justify-center py-10">
-              <button
-                onClick={() => setShowAchievements(true)}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all"
-              >
-                Ver Todas as Conquistas
-              </button>
-            </div>
+            <AchievementsGallery
+              isOpen={true}
+              onClose={() => setActiveTab('profile')}
+              embedded={true}
+            />
           ) : activeTab === 'profile' ? (
             <div className="space-y-6 max-w-2xl mx-auto">
               {/* Success/Error Messages */}
@@ -333,6 +359,40 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                   placeholder="Seu nome completo"
                   className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900"
                 />
+                {/* Achievements como Medalhas abaixo do nome */}
+                {getTopAchievements().length > 0 && (
+                  <div className="flex items-center justify-center gap-3 mt-4">
+                    {getTopAchievements().map((userAch) => {
+                      const achievement = ACHIEVEMENTS[userAch.achievement_id];
+                      if (!achievement) return null;
+                      
+                      const getLevelColor = (level: AchievementLevel) => {
+                        switch (level) {
+                          case 'gold': return 'text-yellow-500';
+                          case 'silver': return 'text-slate-400';
+                          case 'bronze': return 'text-amber-600';
+                          default: return 'text-slate-400';
+                        }
+                      };
+                      
+                      return (
+                        <div
+                          key={userAch.id}
+                          className={`relative group ${getLevelColor(userAch.level)}`}
+                          title={`${achievement.name} (${userAch.level === 'gold' ? 'Ouro' : userAch.level === 'silver' ? 'Prata' : 'Bronze'})`}
+                        >
+                          <div className="text-3xl filter drop-shadow-lg">
+                            {achievement.icon}
+                          </div>
+                          {/* Badge de nível */}
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center border-2 border-current text-xs font-black">
+                            {userAch.level === 'gold' ? '🥇' : userAch.level === 'silver' ? '🥈' : '🥉'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Save Button */}

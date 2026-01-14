@@ -66,6 +66,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY") || "";
 
     if (!geminiApiKey) {
@@ -84,18 +85,22 @@ serve(async (req) => {
       );
     }
 
-    // Validar usuário
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // Criar cliente para validar usuário (usa anon key com token do usuário)
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Criar cliente para storage usando service_role (bypass RLS)
+    // Isso é seguro porque já validamos que o usuário está autenticado
+    const supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
 
     // Rate limiting
     const rateLimit = checkRateLimit(user.id);

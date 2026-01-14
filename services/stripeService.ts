@@ -26,11 +26,22 @@ function getSupabaseClient() {
 // Mapeamento de planos para valores em centavos (BRL)
 // Nota: O Stripe trabalha com valores em centavos (menor unidade da moeda)
 // Exemplo: 1990 centavos = R$ 19,90
-// IMPORTANTE: Estes valores devem corresponder aos da Edge Function (SUPABASE_SCHEMA.md)
+// IMPORTANTE: Estes valores devem corresponder aos da Edge Function
 const PLAN_PRICES: Record<string, number> = {
+  // Planos Avulsos
   'starter': 1190,   // R$ 11,90 (1190 centavos)
   'genius': 1990,   // R$ 19,90 (1990 centavos)
   'master': 5990,  // R$ 59,90 (5990 centavos)
+  // Assinaturas
+  'subscription-monthly': 1990,  // R$ 19,90/mês
+  'subscription-yearly': 1490,    // R$ 14,90/mês (cobrado anualmente: R$ 178,80)
+};
+
+// Bônus de créditos ao pagar via PIX (apenas para planos avulsos)
+const PIX_BONUS: Record<string, number> = {
+  'starter': 5,
+  'genius': 20,
+  'master': 100,
 };
 
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -175,6 +186,9 @@ async function createCheckoutSession(
           amount: PLAN_PRICES[plan.id] || 0,
           currency: 'brl',
           user_id: userId,
+          plan_type: plan.type || 'one-time',
+          interval: plan.interval || null,
+          pix_bonus: plan.pixBonus || 0,
         }),
       });
 

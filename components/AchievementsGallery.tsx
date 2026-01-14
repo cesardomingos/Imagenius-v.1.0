@@ -1,24 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AchievementId, Achievement, AchievementLevel, ACHIEVEMENTS, AchievementProgress } from '../types/achievements';
 import { getUserAchievements, getAchievementProgress } from '../services/achievementService';
 
 interface AchievementsGalleryProps {
   isOpen: boolean;
   onClose: () => void;
+  embedded?: boolean; // Se true, renderiza sem backdrop (dentro de outro componente)
 }
 
-const AchievementsGallery: React.FC<AchievementsGalleryProps> = ({ isOpen, onClose }) => {
+const AchievementsGallery: React.FC<AchievementsGalleryProps> = ({ isOpen, onClose, embedded = false }) => {
   const [userAchievements, setUserAchievements] = useState<Map<AchievementId, AchievementLevel>>(new Map());
   const [progressMap, setProgressMap] = useState<Map<AchievementId, AchievementProgress>>(new Map());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadAchievements();
-    }
-  }, [isOpen]);
-
-  const loadAchievements = async () => {
+  const loadAchievements = useCallback(async () => {
     setLoading(true);
     try {
       const achievements = await getUserAchievements();
@@ -44,7 +39,13 @@ const AchievementsGallery: React.FC<AchievementsGalleryProps> = ({ isOpen, onClo
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAchievements();
+    }
+  }, [isOpen, loadAchievements]);
 
   const getLevelColor = (level: AchievementLevel | null, isUnlocked: boolean) => {
     if (!isUnlocked) {
@@ -94,8 +95,8 @@ const AchievementsGallery: React.FC<AchievementsGalleryProps> = ({ isOpen, onClo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-6xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col my-8">
+    <div className={`${embedded ? 'relative' : 'fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md'} ${embedded ? '' : 'animate-in fade-in duration-300'} overflow-y-auto`}>
+      <div className={`bg-white dark:bg-slate-800 ${embedded ? 'rounded-2xl' : 'rounded-3xl'} max-w-6xl w-full ${embedded ? 'max-h-none' : 'max-h-[90vh]'} overflow-hidden ${embedded ? '' : 'shadow-2xl'} ${embedded ? '' : 'animate-in zoom-in-95 duration-300'} flex flex-col ${embedded ? '' : 'my-8'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <div>

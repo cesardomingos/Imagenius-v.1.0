@@ -45,24 +45,35 @@ const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 
     setIsSharing(true);
     setShareMessage(null);
 
-    try {
-      const result = await shareArt(selectedImage.url, selectedImage.prompt);
-      
-      if (result.success) {
-        setIsShared(true);
-        setShareMessage('Arte compartilhada com sucesso com a comunidade! 🎨');
-        setTimeout(() => setShareMessage(null), 5000);
-      } else {
-        setShareMessage(result.error || 'Erro ao compartilhar arte. Tente novamente.');
-        setTimeout(() => setShareMessage(null), 5000);
-      }
-    } catch (error: any) {
-      console.error('Erro ao compartilhar arte:', error);
-      setShareMessage('Erro ao compartilhar arte. Tente novamente.');
-      setTimeout(() => setShareMessage(null), 5000);
-    } finally {
-      setIsSharing(false);
-    }
+    // Iniciar compartilhamento de forma assíncrona (não bloqueia o fechamento do modal)
+    shareArt(selectedImage.url, selectedImage.prompt)
+      .then(result => {
+        if (result.success) {
+          setIsShared(true);
+          // Se o modal ainda estiver aberto, mostrar mensagem
+          if (selectedImage) {
+            setShareMessage('Arte compartilhada com sucesso com a comunidade! 🎨');
+            setTimeout(() => setShareMessage(null), 5000);
+          }
+        } else {
+          // Se o modal ainda estiver aberto, mostrar erro
+          if (selectedImage) {
+            setShareMessage(result.error || 'Erro ao compartilhar arte. Tente novamente.');
+            setTimeout(() => setShareMessage(null), 5000);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao compartilhar arte:', error);
+        // Se o modal ainda estiver aberto, mostrar erro
+        if (selectedImage) {
+          setShareMessage('Erro ao compartilhar arte. Tente novamente.');
+          setTimeout(() => setShareMessage(null), 5000);
+        }
+      })
+      .finally(() => {
+        setIsSharing(false);
+      });
   };
 
   if (images.length === 0 && !isBatching) {

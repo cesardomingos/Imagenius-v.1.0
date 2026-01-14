@@ -26,6 +26,9 @@ export interface PricingPlan {
   credits: number;
   price: string;
   popular?: boolean;
+  type?: 'one-time' | 'subscription'; // Tipo de plano: avulso ou assinatura
+  interval?: 'month' | 'year'; // Para assinaturas: mensal ou anual
+  pixBonus?: number; // Bônus de créditos ao pagar via PIX (apenas para planos avulsos)
 }
 
 export interface UserProfile {

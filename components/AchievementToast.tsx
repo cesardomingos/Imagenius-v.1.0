@@ -56,7 +56,7 @@ const AchievementToast: React.FC<AchievementToastProps> = ({ achievementId, leve
     <>
       {/* Confetti Effect */}
       {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none z-[500] overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none z-[9998] overflow-hidden">
           {[...Array(50)].map((_, i) => (
             <div
               key={i}
@@ -77,7 +77,7 @@ const AchievementToast: React.FC<AchievementToastProps> = ({ achievementId, leve
       )}
 
       {/* Toast Notification */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[400] animate-in slide-in-from-top-5 fade-in duration-500">
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-top-5 fade-in duration-500">
         <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-md p-6 max-w-md w-full mx-4">
           <div className="flex items-start gap-4">
             {/* Achievement Icon */}

@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { UserProfile } from '../types';
+import { getUserAchievements } from '../services/achievementService';
+import { UserAchievement, AchievementLevel, ACHIEVEMENTS } from '../types/achievements';
 
 interface HeaderProps {
   onReset: () => void;
@@ -18,6 +20,40 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout, onOpenProfile, hasNewAchievement = false }) => {
   const { theme, toggleTheme } = useTheme();
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+
+  useEffect(() => {
+    if (currentUser) {
+      loadUserAchievements();
+    } else {
+      setUserAchievements([]);
+    }
+  }, [currentUser]);
+
+  const loadUserAchievements = async () => {
+    try {
+      const achievements = await getUserAchievements();
+      setUserAchievements(achievements);
+    } catch (error) {
+      console.error('Erro ao carregar achievements:', error);
+    }
+  };
+
+  // Função para obter os 3 melhores achievements (priorizando nível e depois data)
+  const getTopAchievements = (): UserAchievement[] => {
+    const levelOrder: Record<AchievementLevel, number> = { gold: 3, silver: 2, bronze: 1 };
+    
+    return [...userAchievements]
+      .sort((a, b) => {
+        // Primeiro ordena por nível (gold > silver > bronze)
+        const levelDiff = levelOrder[b.level] - levelOrder[a.level];
+        if (levelDiff !== 0) return levelDiff;
+        
+        // Se o nível for igual, ordena por data (mais recente primeiro)
+        return new Date(b.unlocked_at).getTime() - new Date(a.unlocked_at).getTime();
+      })
+      .slice(0, 3);
+  };
   
   return (
     <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 sticky top-0 z-40">
@@ -148,8 +184,40 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
                   {hasNewAchievement && (
                     <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
                   )}
-                  <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Usuário</p>
-                  <p className="text-xs font-black text-slate-900 dark:text-white truncate max-w-[120px]">{currentUser.email}</p>
+                  <div className="flex flex-col items-start">
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Usuário</p>
+                    <p className="text-xs font-black text-slate-900 dark:text-white truncate max-w-[120px]">{currentUser.email}</p>
+                    {/* Achievements como Medalhas */}
+                    {getTopAchievements().length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {getTopAchievements().map((userAch) => {
+                          const achievement = ACHIEVEMENTS[userAch.achievement_id];
+                          if (!achievement) return null;
+                          
+                          const getLevelColor = (level: AchievementLevel) => {
+                            switch (level) {
+                              case 'gold': return 'text-yellow-500';
+                              case 'silver': return 'text-slate-400';
+                              case 'bronze': return 'text-amber-600';
+                              default: return 'text-slate-400';
+                            }
+                          };
+                          
+                          return (
+                            <div
+                              key={userAch.id}
+                              className={`relative group ${getLevelColor(userAch.level)}`}
+                              title={`${achievement.name} (${userAch.level === 'gold' ? 'Ouro' : userAch.level === 'silver' ? 'Prata' : 'Bronze'})`}
+                            >
+                              <div className="text-lg filter drop-shadow-md">
+                                {achievement.icon}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </button>
                 <button 
                   onClick={onLogout}

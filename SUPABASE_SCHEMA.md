@@ -271,6 +271,29 @@ Para usar o Stripe real, você precisa:
 
 ## 9. Edge Function para Criar Sessão de Checkout
 
+### Funcionalidades Implementadas
+
+Esta Edge Function suporta:
+
+1. **Planos Avulsos (One-time payments):**
+   - `starter`: 20 créditos por R$ 11,90
+   - `genius`: 100 créditos por R$ 19,90
+   - `master`: 400 créditos por R$ 59,90
+   - **Bônus PIX:** Pagamentos via PIX recebem créditos extras:
+     - Starter: +5 créditos
+     - Genius: +20 créditos
+     - Master: +100 créditos
+
+2. **Assinaturas (Subscriptions):**
+   - `subscription-monthly`: 200 créditos/mês por R$ 19,90/mês
+   - `subscription-yearly`: 200 créditos/mês por R$ 14,90/mês (cobrado anualmente: R$ 178,80/ano)
+
+3. **Métodos de Pagamento:**
+   - **Cartão de Crédito:** Disponível para todos os planos
+   - **PIX:** Disponível apenas para planos avulsos (com bônus de créditos)
+
+### Criação da Edge Function
+
 Crie uma Edge Function no Supabase chamada `create-checkout-session`:
 
 1. **No painel do Supabase, vá em Edge Functions > Create Function**
@@ -286,531 +309,209 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
 });
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Créditos por plano
 const PLAN_CREDITS: Record<string, number> = {
+  // Planos Avulsos
   'starter': 20,
   'genius': 100,
   'master': 400,
+  // Assinaturas (créditos mensais)
+  'subscription-monthly': 200,
+  'subscription-yearly': 200,
 };
 
+// Preços em centavos (BRL)
 const PLAN_PRICES: Record<string, number> = {
-  'starter': 1190,   // R$ 11,90 em centavos
-  'genius': 1990,   // R$ 19,90 em centavos
-  'master': 5990,  // R$ 59,90 em centavos
+  // Planos Avulsos
+  'starter': 1190,   // R$ 11,90
+  'genius': 1990,   // R$ 19,90
+  'master': 5990,  // R$ 59,90
+  // Assinaturas
+  'subscription-monthly': 1990,  // R$ 19,90/mês
+  'subscription-yearly': 1490,   // R$ 14,90/mês (cobrado anualmente)
 };
 
-// Headers CORS
-// Em produção, use uma URL específica ao invés de "*" para maior segurança
-const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN") || "*";
-const corsHeaders = {
-  "Access-Control-Allow-Origin": allowedOrigin,
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+// Bônus de créditos ao pagar via PIX (apenas para planos avulsos)
+const PIX_BONUS: Record<string, number> = {
+  'starter': 5,
+  'genius': 20,
+  'master': 100,
 };
 
 serve(async (req) => {
-  // Try-catch mais amplo para capturar erros antes dos logs
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
-    // Tratar requisição OPTIONS (preflight)
-    if (req.method === "OPTIONS") {
-      console.log("[CORS] Preflight request recebido");
-      return new Response("ok", { headers: corsHeaders });
-    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
 
-    // Log inicial da requisição
-    const requestId = crypto.randomUUID();
-    console.log(`[${requestId}] === NOVA REQUISIÇÃO ===`);
-    console.log(`[${requestId}] Método: ${req.method}`);
-    console.log(`[${requestId}] URL: ${req.url}`);
-    console.log(`[${requestId}] Timestamp: ${new Date().toISOString()}`);
-    
-    try {
-    // Verificar autenticação
+    // Obter token de autenticação
     const authHeader = req.headers.get("Authorization");
-    const apikey = req.headers.get("apikey");
-    const contentType = req.headers.get("Content-Type");
-    
-    // Obter SUPABASE_URL e SUPABASE_ANON_KEY das variáveis de ambiente (fora do if para estar disponível em todo o escopo)
-    // NOTA: O Supabase fornece automaticamente SUPABASE_URL, mas SUPABASE_ANON_KEY precisa ser configurada manualmente
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    
-    // Log detalhado dos headers
-    console.log(`[${requestId}] === HEADERS ===`);
-    console.log(`[${requestId}] Authorization: ${authHeader ? "presente" : "ausente"}`);
-    if (authHeader) {
-      const tokenPrefix = authHeader.startsWith("Bearer ") ? authHeader.substring(7, 20) : authHeader.substring(0, 13);
-      console.log(`[${requestId}] Token prefix: ${tokenPrefix}...`);
-      console.log(`[${requestId}] Token length: ${authHeader.length} caracteres`);
-    }
-    console.log(`[${requestId}] apikey header: ${apikey ? "presente" : "ausente"}`);
-    if (apikey) {
-      console.log(`[${requestId}] apikey prefix: ${apikey.substring(0, 10)}...`);
-      console.log(`[${requestId}] apikey length: ${apikey.length} caracteres`);
-    }
-    console.log(`[${requestId}] Content-Type: ${contentType || "não fornecido"}`);
-    
-    // Log de todas as variáveis de ambiente (sem expor valores completos)
-    console.log(`[${requestId}] === VARIÁVEIS DE AMBIENTE ===`);
-    console.log(`[${requestId}] SUPABASE_URL: ${supabaseUrl ? "configurado" : "NÃO CONFIGURADO"}`);
-    console.log(`[${requestId}] SUPABASE_ANON_KEY: ${supabaseAnonKey ? "configurado (" + supabaseAnonKey.substring(0, 10) + "...)" : "NÃO CONFIGURADO"}`);
-    console.log(`[${requestId}] STRIPE_SECRET_KEY: ${Deno.env.get("STRIPE_SECRET_KEY") ? "configurado" : "NÃO CONFIGURADO"}`);
-    console.log(`[${requestId}] SITE_URL: ${Deno.env.get("SITE_URL") || "não configurado"}`);
-    
-    // Edge Functions do Supabase podem usar apikey ou Authorization
-    if (!authHeader && !apikey) {
-      console.error(`[${requestId}] ❌ ERRO: Nenhum token de autenticação fornecido`);
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "Não autorizado - Token de autenticação não fornecido" }),
-        { 
-          status: 401, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
+        JSON.stringify({ error: "Token de autenticação não fornecido" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Validar token JWT usando Supabase
-    // O token vem no formato: "Bearer <jwt_token>"
-    let user = null;
-    
-    if (authHeader) {
-      console.log(`[${requestId}] === VALIDAÇÃO DE TOKEN ===`);
-      
-      // Verificar se o header tem o formato correto
-      if (!authHeader.startsWith("Bearer ")) {
-        console.error(`[${requestId}] ❌ ERRO: Formato de Authorization header inválido`);
-        console.error(`[${requestId}] Header recebido: ${authHeader.substring(0, 50)}...`);
-        return new Response(
-          JSON.stringify({ error: "Formato de Authorization header inválido. Deve ser: Bearer <token>" }),
-          { 
-            status: 401, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders
-            } 
-          }
-        );
-      }
-      
-      console.log(`[${requestId}] Verificando configuração do Supabase...`);
-      console.log(`[${requestId}] SUPABASE_URL: ${supabaseUrl ? "✓ configurado" : "✗ NÃO CONFIGURADO"}`);
-      console.log(`[${requestId}] SUPABASE_ANON_KEY: ${supabaseAnonKey ? "✓ configurado (" + supabaseAnonKey.substring(0, 10) + "...)" : "✗ NÃO CONFIGURADO"}`);
-      
-      // Se SUPABASE_ANON_KEY não estiver configurada, usar o apikey do header como fallback
-      // MAS isso só funciona se o apikey do header for fornecido
-      if (!supabaseUrl) {
-        console.error(`[${requestId}] ❌ ERRO: SUPABASE_URL não configurado`);
-        return new Response(
-          JSON.stringify({ error: "SUPABASE_URL não configurado" }),
-          { 
-            status: 500, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders
-            } 
-          }
-        );
-      }
-      
-      // Se SUPABASE_ANON_KEY não estiver disponível, usar o apikey do header
-      // O apikey do header deve ser a chave anon public do Supabase
-      if (!supabaseAnonKey && !apikey) {
-        console.error(`[${requestId}] ❌ ERRO: SUPABASE_ANON_KEY não configurado e apikey não fornecido no header`);
-        return new Response(
-          JSON.stringify({ 
-            error: "SUPABASE_ANON_KEY não configurado. Configure nos secrets da Edge Function ou forneça via header 'apikey'"
-          }),
-          { 
-            status: 500, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders
-            } 
-          }
-        );
-      }
-      
-      // Comparar apikey do header com SUPABASE_ANON_KEY
-      if (apikey) {
-        const apikeyMatch = apikey === supabaseAnonKey;
-        console.log(`[${requestId}] Comparação apikey: ${apikeyMatch ? "✓ CORRESPONDE" : "✗ NÃO CORRESPONDE"}`);
-        if (!apikeyMatch) {
-          console.warn(`[${requestId}] ⚠️ ATENÇÃO: apikey do header não corresponde ao SUPABASE_ANON_KEY`);
-          console.log(`[${requestId}] Header apikey prefix: ${apikey.substring(0, 10)}...`);
-          console.log(`[${requestId}] Env apikey prefix: ${supabaseAnonKey.substring(0, 10)}...`);
-        }
-      }
-
-      // Criar cliente Supabase com o token
-      // IMPORTANTE: Priorizar SUPABASE_ANON_KEY da env var (mais seguro e confiável)
-      // Usar apikey do header apenas como fallback se SUPABASE_ANON_KEY não estiver disponível
-      // O apikey do header deve ser o mesmo que VITE_SUPABASE_ANON_KEY do frontend
-      const finalApikey = supabaseAnonKey || apikey;
-      
-      if (!finalApikey) {
-        console.error(`[${requestId}] ❌ ERRO: Nenhuma chave anon disponível (nem env var nem header)`);
-        return new Response(
-          JSON.stringify({ error: "Chave anon não disponível para validação do token" }),
-          { 
-            status: 500, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders
-            } 
-          }
-        );
-      }
-      
-      console.log(`[${requestId}] Criando cliente Supabase...`);
-      console.log(`[${requestId}] apikey source: ${supabaseAnonKey ? "env var (SUPABASE_ANON_KEY)" : "header (fallback)"}`);
-      console.log(`[${requestId}] finalApikey prefix: ${finalApikey.substring(0, 10)}...`);
-      console.log(`[${requestId}] finalApikey length: ${finalApikey.length} caracteres`);
-      
-      // Log importante: se estiver usando apikey do header, avisar
-      if (!supabaseAnonKey && apikey) {
-        console.warn(`[${requestId}] ⚠️ ATENÇÃO: Usando apikey do header porque SUPABASE_ANON_KEY não está configurada na Edge Function`);
-        console.warn(`[${requestId}] ⚠️ RECOMENDAÇÃO: Configure SUPABASE_ANON_KEY nos secrets da Edge Function para maior segurança`);
-      }
-      
-      const supabaseAuth = createClient(
-        supabaseUrl,
-        finalApikey,
-        {
-          global: {
-            headers: {
-              Authorization: authHeader,
-              apikey: finalApikey,
-            },
-          },
-        }
-      );
-
-      console.log(`[${requestId}] Cliente Supabase criado. Validando token...`);
-      
-      // Validar o token e obter o usuário
-      // IMPORTANTE: O getUser() valida o JWT token automaticamente
-      const startTime = Date.now();
-      const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
-      const validationTime = Date.now() - startTime;
-      
-      console.log(`[${requestId}] Validação concluída em ${validationTime}ms`);
-      
-      if (authError) {
-        console.error(`[${requestId}] ❌ ERRO DE AUTENTICAÇÃO ===`);
-        console.error(`[${requestId}] Mensagem: ${authError.message}`);
-        console.error(`[${requestId}] Status: ${authError.status || "não fornecido"}`);
-        console.error(`[${requestId}] Nome: ${authError.name || "não fornecido"}`);
-        console.error(`[${requestId}] Token prefix: ${authHeader.substring(7, 30)}...`);
-        
-        // Verificação crítica: comparar apikey
-        const apikeyMatch = apikey === supabaseAnonKey;
-        console.error(`[${requestId}] apikey match: ${apikeyMatch ? "✓ SIM" : "✗ NÃO"}`);
-        
-        if (apikey && !apikeyMatch) {
-          console.error(`[${requestId}] ⚠️⚠️⚠️ PROBLEMA CRÍTICO IDENTIFICADO ⚠️⚠️⚠️`);
-          console.error(`[${requestId}] O apikey do header NÃO corresponde ao SUPABASE_ANON_KEY da Edge Function!`);
-          console.error(`[${requestId}] Header apikey (primeiros 30): ${apikey.substring(0, 30)}...`);
-          console.error(`[${requestId}] Env apikey (primeiros 30): ${supabaseAnonKey.substring(0, 30)}...`);
-          console.error(`[${requestId}] Header apikey length: ${apikey.length}`);
-          console.error(`[${requestId}] Env apikey length: ${supabaseAnonKey.length}`);
-          console.error(`[${requestId}] SOLUÇÃO: Configure SUPABASE_ANON_KEY na Edge Function com o mesmo valor de VITE_SUPABASE_ANON_KEY do frontend`);
-        } else if (!apikey) {
-          console.error(`[${requestId}] ⚠️ ATENÇÃO: apikey não foi enviado no header`);
-          console.error(`[${requestId}] Usando SUPABASE_ANON_KEY da variável de ambiente`);
-        }
-        
-        // Tentar decodificar o JWT para diagnóstico (sem validar assinatura)
-        try {
-          const tokenWithoutBearer = authHeader.substring(7); // Remove "Bearer "
-          const tokenParts = tokenWithoutBearer.split('.');
-          if (tokenParts.length === 3) {
-            const header = JSON.parse(atob(tokenParts[0]));
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.error(`[${requestId}] JWT Header:`, header);
-            console.error(`[${requestId}] JWT Payload (user_id):`, payload.sub || payload.user_id || "não encontrado");
-            console.error(`[${requestId}] JWT Payload (exp):`, payload.exp ? new Date(payload.exp * 1000).toISOString() : "não encontrado");
-            console.error(`[${requestId}] JWT Payload (iat):`, payload.iat ? new Date(payload.iat * 1000).toISOString() : "não encontrado");
-          }
-        } catch (decodeError) {
-          console.error(`[${requestId}] Não foi possível decodificar JWT para diagnóstico:`, decodeError);
-        }
-        
-        // Se o erro for "Invalid JWT", pode ser que o apikey não corresponde
-        if (authError.message.includes("JWT") || authError.message.includes("token") || authError.message.includes("Invalid")) {
-          return new Response(
-            JSON.stringify({ 
-              error: `Token inválido: ${authError.message}`,
-              hint: "Verifique se o apikey do header corresponde ao SUPABASE_ANON_KEY",
-              status: authError.status || 401,
-              requestId: requestId // Para rastreamento
-            }),
-            { 
-              status: 401, 
-              headers: { 
-                "Content-Type": "application/json",
-                ...corsHeaders
-              } 
-            }
-          );
-        }
-        
-        return new Response(
-          JSON.stringify({ 
-            error: `Erro de autenticação: ${authError.message}`,
-            status: authError.status || 401,
-            requestId: requestId
-          }),
-          { 
-            status: 401, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders
-            } 
-          }
-        );
-      }
-      
-      if (!authUser) {
-        console.error(`[${requestId}] ❌ ERRO: Usuário não encontrado no token`);
-        return new Response(
-          JSON.stringify({ error: "Usuário não encontrado no token", requestId }),
-          { 
-            status: 401, 
-            headers: { 
-              "Content-Type": "application/json",
-              ...corsHeaders
-            } 
-          }
-        );
-      }
-      
-      user = authUser;
-      console.log(`[${requestId}] ✓ Usuário autenticado: ${user.id}`);
-      console.log(`[${requestId}] Email: ${user.email || "não fornecido"}`);
-    } else if (!apikey) {
-      // Se não tiver nem Authorization nem apikey, negar acesso
-      return new Response(
-        JSON.stringify({ error: "Autenticação necessária. Forneça Authorization header ou apikey." }),
-        { 
-          status: 401, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
-    }
-
-    // Obter dados do plano
-    console.log(`[${requestId}] === PROCESSANDO BODY ===`);
-    const body = await req.json();
-    console.log(`[${requestId}] Body recebido:`, {
-      plan_id: body.plan_id,
-      amount: body.amount,
-      currency: body.currency,
-      user_id: body.user_id
+    // Validar usuário
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
     });
-    
-    const { plan_id, amount, currency, user_id } = body;
-    
-    // Validar que user_id corresponde ao usuário autenticado
-    console.log(`[${requestId}] === VALIDAÇÃO DE DADOS ===`);
-    if (user && user_id !== user.id) {
-      console.error(`[${requestId}] ❌ ERRO: user_id não corresponde`);
-      console.error(`[${requestId}] user_id do body: ${user_id}`);
-      console.error(`[${requestId}] user.id autenticado: ${user.id}`);
-      return new Response(
-        JSON.stringify({ error: "user_id não corresponde ao usuário autenticado", requestId }),
-        { 
-          status: 403, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
-    }
-    
-    // Se não tiver usuário autenticado mas tiver user_id no body, usar ele
-    // (caso esteja usando apikey para autenticação)
-    const finalUserId = user ? user.id : user_id;
-    
-    if (!finalUserId) {
-      console.error(`[${requestId}] ❌ ERRO: user_id é obrigatório`);
-      return new Response(
-        JSON.stringify({ error: "user_id é obrigatório", requestId }),
-        { 
-          status: 400, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
-    }
-    
-    console.log(`[${requestId}] finalUserId: ${finalUserId}`);
-    
-    if (!plan_id || !PLAN_CREDITS[plan_id]) {
-      console.error(`[${requestId}] ❌ ERRO: Plano inválido: ${plan_id}`);
-      console.log(`[${requestId}] Planos disponíveis:`, Object.keys(PLAN_CREDITS));
-      return new Response(
-        JSON.stringify({ error: `Plano inválido: ${plan_id}`, requestId }),
-        { 
-          status: 400, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
-    }
-    
-    console.log(`[${requestId}] ✓ Plano válido: ${plan_id} (${PLAN_CREDITS[plan_id]} créditos)`);
 
-    // amount vem em centavos (ex: 6990 = R$ 69,90)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Usuário não autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Parse request body
+    const body = await req.json();
+    const { plan_id, amount, currency, user_id, plan_type, interval, pix_bonus } = body;
+
+    if (!plan_id || !PLAN_CREDITS[plan_id]) {
+      return new Response(
+        JSON.stringify({ error: "Plano inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const finalUserId = user_id || user.id;
     const amountInCents = amount || PLAN_PRICES[plan_id];
-    console.log(`[${requestId}] === CRIANDO SESSÃO STRIPE ===`);
-    console.log(`[${requestId}] Amount: ${amountInCents} centavos (R$ ${(amountInCents / 100).toFixed(2)})`);
-    console.log(`[${requestId}] Currency: ${currency || "brl"}`);
-    console.log(`[${requestId}] Plan: ${plan_id}`);
+    const planType = plan_type || 'one-time';
+    const isSubscription = planType === 'subscription';
+    const subscriptionInterval = interval || 'month';
+
+    // Calcular créditos (incluindo bônus PIX se aplicável)
+    let creditsToAdd = PLAN_CREDITS[plan_id];
+    if (!isSubscription && pix_bonus) {
+      creditsToAdd += pix_bonus;
+    }
+
+    console.log(`[CHECKOUT] Criando sessão para plano: ${plan_id}`);
+    console.log(`[CHECKOUT] Tipo: ${planType}, Intervalo: ${subscriptionInterval}`);
+    console.log(`[CHECKOUT] Créditos: ${creditsToAdd} (base: ${PLAN_CREDITS[plan_id]}, bônus PIX: ${pix_bonus || 0})`);
     
-    // Criar sessão de checkout no Stripe
-    const stripeStartTime = Date.now();
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+    // Configurar sessão do Stripe
+    const sessionConfig: any = {
+      payment_method_types: isSubscription ? ["card"] : ["card", "pix"], // PIX apenas para pagamentos únicos
       line_items: [
         {
           price_data: {
             currency: currency || "brl",
             product_data: {
-              name: `Plano ${plan_id} - ${PLAN_CREDITS[plan_id]} créditos`,
+              name: isSubscription 
+                ? `Assinatura Genius - ${PLAN_CREDITS[plan_id]} imagens/mês`
+                : `Plano ${plan_id} - ${PLAN_CREDITS[plan_id]} créditos${pix_bonus ? ` (+${pix_bonus} bônus PIX)` : ''}`,
             },
             unit_amount: amountInCents,
+            ...(isSubscription && {
+              recurring: {
+                interval: subscriptionInterval,
+              },
+            }),
           },
           quantity: 1,
         },
       ],
-      mode: "payment",
+      mode: isSubscription ? "subscription" : "payment",
       success_url: `${Deno.env.get("SITE_URL") || "http://localhost:3000"}?checkout=success`,
       cancel_url: `${Deno.env.get("SITE_URL") || "http://localhost:3000"}?checkout=cancel`,
       client_reference_id: finalUserId,
       metadata: {
         plan_id,
-        credits: PLAN_CREDITS[plan_id].toString(),
+        credits: creditsToAdd.toString(),
         user_id: finalUserId,
+        plan_type: planType,
+        ...(isSubscription && { interval: subscriptionInterval }),
+        ...(pix_bonus && { pix_bonus: pix_bonus.toString() }),
       },
-    });
+    };
 
-    const stripeTime = Date.now() - stripeStartTime;
-    console.log(`[${requestId}] ✓ Sessão Stripe criada em ${stripeTime}ms`);
-    console.log(`[${requestId}] Session ID: ${session.id}`);
-    console.log(`[${requestId}] Session URL: ${session.url ? "presente" : "ausente"}`);
-
-    // Criar transação pendente no Supabase usando service_role key (bypassa RLS)
-    console.log(`[${requestId}] === CRIANDO TRANSAÇÃO PENDENTE ===`);
-    const supabaseAdmin = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Usa service_role para bypass RLS
-    );
-
-    const { error: transactionError } = await supabaseAdmin.from("transactions").insert({
-      user_id: finalUserId,
-      stripe_session_id: session.id,
-      plan_id,
-      amount_total: amountInCents,
-      currency: currency || "brl",
-      status: "pending",
-    });
-
-    if (transactionError) {
-      console.error(`[${requestId}] ❌ ERRO ao criar transação:`, transactionError);
-      // Não falhar a requisição, mas logar o erro
-      // O webhook pode criar a transação se ela não existir
-    } else {
-      console.log(`[${requestId}] ✓ Transação pendente criada com sucesso`);
+    // Para assinaturas anuais, o valor já está correto (R$ 14,90/mês = R$ 178,80/ano)
+    // O Stripe espera o valor total anual no unit_amount quando interval é 'year'
+    if (isSubscription && subscriptionInterval === 'year') {
+      // R$ 14,90/mês * 12 meses = R$ 178,80/ano = 17880 centavos
+      sessionConfig.line_items[0].price_data.unit_amount = 17880;
     }
 
-    console.log(`[${requestId}] === SUCESSO ===`);
-    console.log(`[${requestId}] Retornando resposta com sessionId`);
-    
+    // Criar sessão de checkout no Stripe
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+
+    console.log(`[CHECKOUT] ✓ Sessão criada: ${session.id}`);
+
+    // Criar transação/subscription pendente no Supabase usando service_role key
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    if (isSubscription) {
+      // Para assinaturas, criar registro na tabela de subscriptions (se existir)
+      // Por enquanto, vamos criar uma transação especial
+      const subscriptionAmount = subscriptionInterval === 'year' ? 17880 : amountInCents;
+      const { error: transactionError } = await supabaseAdmin.from("transactions").insert({
+        user_id: finalUserId,
+        stripe_session_id: session.id,
+        plan_id,
+        amount_total: subscriptionAmount,
+        currency: currency || "brl",
+        status: "pending",
+      });
+
+      if (transactionError) {
+        console.error(`[CHECKOUT] Erro ao criar transação:`, transactionError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar transação" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      // Para pagamentos únicos
+      const { error: transactionError } = await supabaseAdmin.from("transactions").insert({
+        user_id: finalUserId,
+        stripe_session_id: session.id,
+        plan_id,
+        amount_total: amountInCents,
+        currency: currency || "brl",
+        status: "pending",
+      });
+
+      if (transactionError) {
+        console.error(`[CHECKOUT] Erro ao criar transação:`, transactionError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar transação" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         sessionId: session.id, 
-        url: session.url,
-        // Retornar dados necessários para criar transação no frontend
-        plan_id,
-        amount: amountInCents,
-        currency: currency || "brl",
-        requestId: requestId // Para rastreamento
+        url: session.url 
       }),
       { 
         status: 200, 
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        } 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
-    } catch (error: any) {
-      // Erro dentro do try interno (após requestId ser criado)
-      const errorRequestId = requestId || "unknown-" + Date.now();
-      
-      console.error(`[${errorRequestId}] ❌❌❌ ERRO CRÍTICO ❌❌❌`);
-      console.error(`[${errorRequestId}] Tipo: ${error?.constructor?.name || typeof error}`);
-      console.error(`[${errorRequestId}] Mensagem: ${error?.message || String(error)}`);
-      console.error(`[${errorRequestId}] Stack:`, error?.stack || "N/A");
-      
-      // Log adicional para debug
-      try {
-        console.error(`[${errorRequestId}] Error object keys:`, Object.keys(error || {}));
-      } catch (e) {
-        // Ignorar se não conseguir serializar
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          error: error?.message || "Erro interno do servidor",
-          requestId: errorRequestId,
-          type: error?.constructor?.name || "UnknownError"
-        }),
-        { 
-          status: 500, 
-          headers: { 
-            "Content-Type": "application/json",
-            ...corsHeaders
-          } 
-        }
-      );
-    }
+
   } catch (error: any) {
-    // Erro no try externo (antes dos logs ou durante inicialização)
-    // Isso captura erros que acontecem antes do requestId ser criado
-    const earlyErrorId = "early-error-" + Date.now();
-    
-    console.error(`[${earlyErrorId}] ❌❌❌ ERRO ANTES DOS LOGS ❌❌❌`);
-    console.error(`[${earlyErrorId}] Método: ${req?.method || "unknown"}`);
-    console.error(`[${earlyErrorId}] URL: ${req?.url || "unknown"}`);
-    console.error(`[${earlyErrorId}] Tipo: ${error?.constructor?.name || typeof error}`);
-    console.error(`[${earlyErrorId}] Mensagem: ${error?.message || String(error)}`);
-    console.error(`[${earlyErrorId}] Stack:`, error?.stack || "N/A");
-    
+    console.error("Erro na Edge Function:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error?.message || "Erro desconhecido durante inicialização",
-        requestId: earlyErrorId,
-        type: error?.constructor?.name || "EarlyError",
-        hint: "Erro ocorreu antes dos logs detalhados. Verifique a configuração da Edge Function."
-      }),
-      { 
-        status: 500, 
-        headers: { 
-          "Content-Type": "application/json",
-          ...corsHeaders
-        } 
-      }
+      JSON.stringify({ error: error.message || "Erro interno do servidor" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
@@ -885,16 +586,17 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
 });
 
+// Créditos por plano (base, sem bônus)
 const PLAN_CREDITS: Record<string, number> = {
   'starter': 20,
   'genius': 100,
   'master': 400,
+  'subscription-monthly': 200,
+  'subscription-yearly': 200,
 };
 
 serve(async (req) => {
   console.log(`[WEBHOOK] === NOVA REQUISIÇÃO WEBHOOK ===`);
-  console.log(`[WEBHOOK] Método: ${req.method}`);
-  console.log(`[WEBHOOK] URL: ${req.url}`);
 
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
@@ -905,18 +607,11 @@ serve(async (req) => {
     );
   }
 
-  console.log(`[WEBHOOK] Assinatura presente: ${signature.substring(0, 20)}...`);
-
   const body = await req.text();
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
 
-  console.log(`[WEBHOOK] STRIPE_WEBHOOK_SECRET: ${webhookSecret ? "configurado" : "NÃO CONFIGURADO"}`);
-  console.log(`[WEBHOOK] Body length: ${body.length} caracteres`);
-
   let event: Stripe.Event;
   try {
-    // IMPORTANTE: No Deno/Edge Functions, usar constructEventAsync ao invés de constructEvent
-    // Isso é necessário porque SubtleCryptoProvider não pode ser usado em contexto síncrono
     event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret || "");
     console.log(`[WEBHOOK] ✓ Evento validado: ${event.type}`);
   } catch (err: any) {
@@ -927,65 +622,83 @@ serve(async (req) => {
     );
   }
 
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
+  // Processar checkout.session.completed (pagamentos únicos e primeira cobrança de assinatura)
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const planId = session.metadata?.plan_id;
     const userId = session.metadata?.user_id || session.client_reference_id;
-    const credits = planId ? PLAN_CREDITS[planId] : 0;
+    const planType = session.metadata?.plan_type || 'one-time';
+    const pixBonus = parseInt(session.metadata?.pix_bonus || '0');
+    
+    // Verificar se o pagamento foi via PIX
+    let isPixPayment = false;
+    if (session.payment_intent) {
+      try {
+        const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent as string);
+        // PIX no Stripe geralmente aparece como payment_method_type 'pix'
+        isPixPayment = paymentIntent.payment_method_types?.includes('pix') || false;
+      } catch (err) {
+        console.log(`[WEBHOOK] Não foi possível verificar payment_intent:`, err);
+      }
+    }
+    
+    // Calcular créditos (base + bônus PIX se aplicável)
+    let creditsToAdd = planId ? PLAN_CREDITS[planId] || 0 : 0;
+    if (planType === 'one-time' && pixBonus > 0 && isPixPayment) {
+      creditsToAdd += pixBonus;
+      console.log(`[WEBHOOK] Pagamento via PIX detectado! Bônus: +${pixBonus} créditos`);
+    }
 
     console.log(`[WEBHOOK] Processando checkout.session.completed`);
     console.log(`[WEBHOOK] Session ID: ${session.id}`);
     console.log(`[WEBHOOK] User ID: ${userId}`);
     console.log(`[WEBHOOK] Plan ID: ${planId}`);
-    console.log(`[WEBHOOK] Créditos a adicionar: ${credits}`);
+    console.log(`[WEBHOOK] Plan Type: ${planType}`);
+    console.log(`[WEBHOOK] PIX Bonus: ${pixBonus}`);
+    console.log(`[WEBHOOK] Créditos a adicionar: ${creditsToAdd}`);
 
-    if (!userId || !credits) {
-      console.error(`[WEBHOOK] ❌ Dados inválidos: userId=${userId}, credits=${credits}`);
+    if (!userId || !creditsToAdd) {
+      console.error(`[WEBHOOK] ❌ Dados inválidos: userId=${userId}, credits=${creditsToAdd}`);
       return new Response(
         JSON.stringify({ error: "Dados inválidos" }),
         { status: 400 }
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Use service role key para bypass RLS
-    );
+    // Verificar se é assinatura ou pagamento único
+    const isSubscription = planType === 'subscription' || session.mode === 'subscription';
 
-    // Buscar ou criar transação
+    // Buscar transação existente
     const { data: existingTransaction, error: fetchError } = await supabase
       .from("transactions")
       .select("*")
       .eq("stripe_session_id", session.id)
-      .single();
+      .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows found
+    if (fetchError && fetchError.code !== 'PGRST116') {
       console.error(`[WEBHOOK] ❌ Erro ao buscar transação:`, fetchError);
       return new Response(
-        JSON.stringify({ error: "Erro ao buscar transação existente" }),
+        JSON.stringify({ error: "Erro ao buscar transação" }),
         { status: 500 }
       );
     }
 
-    // IMPORTANTE: Verificar se os créditos já foram adicionados para esta transação
-    // Isso previne processamento duplicado se o webhook for chamado múltiplas vezes
+    // Verificar se já foi processado
     if (existingTransaction && existingTransaction.status === "completed") {
-      console.log(`[WEBHOOK] ⚠️ Transação já foi processada anteriormente (status: completed)`);
-      console.log(`[WEBHOOK] Session ID: ${session.id}`);
-      console.log(`[WEBHOOK] Pulando processamento para evitar duplicação de créditos`);
+      console.log(`[WEBHOOK] Transação já processada, pulando...`);
       return new Response(
-        JSON.stringify({ 
-          received: true, 
-          message: "Transação já processada anteriormente",
-          skipped: true 
-        }), 
+        JSON.stringify({ received: true, message: "Já processado" }),
         { status: 200 }
       );
     }
 
+    // Criar ou atualizar transação
     if (!existingTransaction) {
-      console.log(`[WEBHOOK] Transação não encontrada, criando nova...`);
-      // Criar transação se não existir (pode acontecer se a Edge Function falhou)
       const { error: createError } = await supabase
         .from("transactions")
         .insert({
@@ -994,7 +707,7 @@ serve(async (req) => {
           plan_id: planId || "",
           amount_total: session.amount_total || 0,
           currency: session.currency || "brl",
-          status: "completed", // Já está completada
+          status: "completed",
         });
 
       if (createError) {
@@ -1003,12 +716,8 @@ serve(async (req) => {
           JSON.stringify({ error: "Erro ao criar transação" }),
           { status: 500 }
         );
-      } else {
-        console.log(`[WEBHOOK] ✓ Transação criada com sucesso`);
       }
     } else {
-      console.log(`[WEBHOOK] Transação encontrada, atualizando status...`);
-      // Atualizar status da transação existente
       const { error: updateError } = await supabase
         .from("transactions")
         .update({ status: "completed" })
@@ -1020,14 +729,10 @@ serve(async (req) => {
           JSON.stringify({ error: "Erro ao atualizar transação" }),
           { status: 500 }
         );
-      } else {
-        console.log(`[WEBHOOK] ✓ Status da transação atualizado para 'completed'`);
       }
     }
 
-    // Atualizar créditos do usuário
-    // IMPORTANTE: Usar incremento atômico para evitar race conditions
-    console.log(`[WEBHOOK] Atualizando créditos do usuário...`);
+    // Adicionar créditos ao usuário
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("credits")
@@ -1037,19 +742,14 @@ serve(async (req) => {
     if (profileError) {
       console.error(`[WEBHOOK] ❌ Erro ao buscar perfil:`, profileError);
       return new Response(
-        JSON.stringify({ error: "Erro ao buscar perfil do usuário" }),
+        JSON.stringify({ error: "Erro ao buscar perfil" }),
         { status: 500 }
       );
     }
 
     const currentCredits = profile?.credits || 0;
-    const newCredits = currentCredits + credits;
+    const newCredits = currentCredits + creditsToAdd;
 
-    console.log(`[WEBHOOK] Créditos atuais: ${currentCredits}`);
-    console.log(`[WEBHOOK] Créditos a adicionar: ${credits}`);
-    console.log(`[WEBHOOK] Novo total: ${newCredits}`);
-
-    // Atualizar créditos usando incremento atômico (RPC function seria ideal, mas UPDATE funciona)
     const { error: updateCreditsError } = await supabase
       .from("profiles")
       .update({ credits: newCredits })
@@ -1063,10 +763,112 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[WEBHOOK] ✓ Créditos atualizados com sucesso para ${newCredits}`);
+    console.log(`[WEBHOOK] ✓ Créditos adicionados: ${creditsToAdd} (total: ${newCredits})`);
+
+    // Se for assinatura, criar/atualizar registro de assinatura
+    if (isSubscription && session.subscription) {
+      // Aqui você pode criar uma tabela de subscriptions se necessário
+      // Por enquanto, apenas logamos
+      console.log(`[WEBHOOK] Assinatura criada: ${session.subscription}`);
+    }
+
+    return new Response(
+      JSON.stringify({ received: true, creditsAdded: creditsToAdd }),
+      { status: 200 }
+    );
   }
 
-  return new Response(JSON.stringify({ received: true }), { status: 200 });
+  // Processar invoice.payment_succeeded (renovações de assinatura)
+  if (event.type === "invoice.payment_succeeded") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const subscriptionId = invoice.subscription as string;
+
+    if (!subscriptionId) {
+      return new Response(
+        JSON.stringify({ received: true, message: "Sem subscription ID" }),
+        { status: 200 }
+      );
+    }
+
+    // Buscar subscription no Stripe para obter metadata
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const customerId = subscription.customer as string;
+
+    // Buscar usuário pelo customer_id (você pode armazenar isso no perfil)
+    // Por enquanto, vamos usar metadata se disponível
+    const userId = subscription.metadata?.user_id;
+    const planId = subscription.metadata?.plan_id || 'subscription-monthly';
+    const creditsToAdd = PLAN_CREDITS[planId] || 200;
+
+    console.log(`[WEBHOOK] Processando renovação de assinatura`);
+    console.log(`[WEBHOOK] Subscription ID: ${subscriptionId}`);
+    console.log(`[WEBHOOK] User ID: ${userId}`);
+    console.log(`[WEBHOOK] Créditos a adicionar: ${creditsToAdd}`);
+
+    if (!userId) {
+      console.error(`[WEBHOOK] ❌ User ID não encontrado na subscription`);
+      return new Response(
+        JSON.stringify({ received: true, message: "User ID não encontrado" }),
+        { status: 200 }
+      );
+    }
+
+    // Adicionar créditos mensais
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("credits")
+      .eq("id", userId)
+      .single();
+
+    if (profileError) {
+      console.error(`[WEBHOOK] ❌ Erro ao buscar perfil:`, profileError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao buscar perfil" }),
+        { status: 500 }
+      );
+    }
+
+    const currentCredits = profile?.credits || 0;
+    const newCredits = currentCredits + creditsToAdd;
+
+    const { error: updateCreditsError } = await supabase
+      .from("profiles")
+      .update({ credits: newCredits })
+      .eq("id", userId);
+
+    if (updateCreditsError) {
+      console.error(`[WEBHOOK] ❌ Erro ao atualizar créditos:`, updateCreditsError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao atualizar créditos" }),
+        { status: 500 }
+      );
+    }
+
+    console.log(`[WEBHOOK] ✓ Créditos mensais adicionados: ${creditsToAdd} (total: ${newCredits})`);
+
+    return new Response(
+      JSON.stringify({ received: true, creditsAdded: creditsToAdd }),
+      { status: 200 }
+    );
+  }
+
+  // Processar customer.subscription.deleted (cancelamento)
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+    console.log(`[WEBHOOK] Assinatura cancelada: ${subscription.id}`);
+    // Aqui você pode atualizar o status da assinatura no banco
+    return new Response(
+      JSON.stringify({ received: true }),
+      { status: 200 }
+    );
+  }
+
+  // Outros eventos
+  console.log(`[WEBHOOK] Evento não processado: ${event.type}`);
+  return new Response(
+    JSON.stringify({ received: true, message: `Evento ${event.type} não processado` }),
+    { status: 200 }
+  );
 });
 ```
 
@@ -1077,7 +879,10 @@ serve(async (req) => {
 3. Cole a URL da sua Edge Function: `https://seu-projeto.supabase.co/functions/v1/stripe-webhook`
    - Substitua `seu-projeto` pelo ID do seu projeto Supabase
    - Você encontra o ID na URL do seu projeto: `https://seu-projeto.supabase.co`
-4. Selecione o evento: `checkout.session.completed`
+4. Selecione os eventos:
+   - `checkout.session.completed` (pagamentos únicos e primeira cobrança de assinatura)
+   - `invoice.payment_succeeded` (renovações de assinatura)
+   - `customer.subscription.deleted` (cancelamentos)
 5. Clique em **Add endpoint** (Adicionar endpoint)
 6. Após criar o webhook, clique nele para ver os detalhes
 7. Na seção **Signing secret**, clique em **Reveal** (Revelar) ou **Click to reveal** (Clique para revelar)
@@ -1099,3 +904,29 @@ serve(async (req) => {
 - `STRIPE_WEBHOOK_SECRET`: Signing secret do webhook (obtido no passo acima)
 - `SUPABASE_URL`: URL do projeto (geralmente já disponível)
 - `SUPABASE_SERVICE_ROLE_KEY`: Chave de service role (obtenha em **Settings > API > service_role key**)
+
+### Funcionalidades do Webhook
+
+O webhook processa os seguintes eventos do Stripe:
+
+1. **`checkout.session.completed`:**
+   - Processa pagamentos únicos e primeira cobrança de assinaturas
+   - Detecta pagamentos via PIX e aplica bônus de créditos automaticamente
+   - Adiciona créditos base + bônus PIX (se aplicável) ao perfil do usuário
+   - Cria/atualiza transação no banco de dados
+
+2. **`invoice.payment_succeeded`:**
+   - Processa renovações mensais/anuais de assinaturas
+   - Adiciona 200 créditos mensais ao perfil do usuário
+   - Mantém a assinatura ativa
+
+3. **`customer.subscription.deleted`:**
+   - Processa cancelamentos de assinaturas
+   - Permite atualizar status da assinatura no banco (se necessário)
+
+### Detecção de Pagamento PIX
+
+O webhook detecta pagamentos via PIX verificando o `payment_intent` da sessão:
+- Se o método de pagamento incluir `'pix'`, o bônus é aplicado automaticamente
+- O bônus só é aplicado para planos avulsos (`plan_type === 'one-time'`)
+- O valor do bônus é definido no metadata da sessão (`pix_bonus`)
