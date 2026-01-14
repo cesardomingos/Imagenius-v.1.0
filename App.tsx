@@ -15,6 +15,7 @@ import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
 import TutorialModal from './components/TutorialModal';
+import UseCasesModal from './components/UseCasesModal';
 import UserProfileModal from './components/UserProfile';
 import ResetPassword from './components/ResetPassword';
 import ConsentModal from './components/ConsentModal';
@@ -50,6 +51,10 @@ const App: React.FC = () => {
 
   // Tutorial State
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  // Use Cases Modal State
+  const [isUseCasesOpen, setIsUseCasesOpen] = useState(false);
+  const [prefilledTheme, setPrefilledTheme] = useState<string | null>(null);
 
   // User Profile State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -257,6 +262,11 @@ const App: React.FC = () => {
   const handleImageUpload = async (base64: string, mimeType: string) => {
     if (projectMode === 'single') {
       setReferenceImages([{ data: base64, mimeType }]);
+      // Se houver um tema pré-preenchido, aplicá-lo
+      if (prefilledTheme) {
+        setThemes([prefilledTheme]);
+        setPrefilledTheme(null); // Limpar após usar
+      }
       setStep('themes');
     } else {
       const newImages = [...referenceImages, { data: base64, mimeType }].slice(0, 5);
@@ -274,6 +284,14 @@ const App: React.FC = () => {
         }
       }
     }
+  };
+
+  const handleUseCaseSelect = (theme: string) => {
+    // Definir modo como 'single' e iniciar o fluxo
+    setProjectMode('single');
+    setReferenceImages([]);
+    setPrefilledTheme(theme);
+    setStep('upload');
   };
 
   const removeImage = (index: number) => {
@@ -439,6 +457,7 @@ const App: React.FC = () => {
   };
 
   const resetApp = () => {
+    setPrefilledTheme(null);
     // "Novo +" deve iniciar direto o fluxo de Estética Coerente (modo single)
     setProjectMode('single');
     setReferenceImages([]);
@@ -527,6 +546,14 @@ const App: React.FC = () => {
           />
         )}
 
+        {isUseCasesOpen && (
+          <UseCasesModal
+            isOpen={isUseCasesOpen}
+            onClose={() => setIsUseCasesOpen(false)}
+            onSelectUseCase={handleUseCaseSelect}
+          />
+        )}
+
         {isProfileOpen && currentUser && (
           <UserProfileModal
             isOpen={isProfileOpen}
@@ -561,8 +588,8 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {/* Botão de Tutorial */}
-                  <div className="md:col-span-2 flex justify-center">
+                  {/* Botões de Tutorial e Exemplos */}
+                  <div className="md:col-span-2 flex justify-center gap-4 flex-wrap">
                     <button
                       onClick={() => setIsTutorialOpen(true)}
                       className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border-2 border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
@@ -571,6 +598,18 @@ const App: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
                       <span>Como funciona a Preservação de DNA?</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setIsUseCasesOpen(true)}
+                      className="group flex items-center gap-3 px-6 py-4 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border-2 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 text-purple-700 dark:text-purple-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                    >
+                      <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <span>Exemplos de Uso</span>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
