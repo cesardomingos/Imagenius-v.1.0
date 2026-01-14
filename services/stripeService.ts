@@ -293,3 +293,51 @@ export async function startStripeCheckout(
     throw new Error(error.message || 'Falha ao iniciar pagamento. Tente novamente.');
   }
 }
+
+/**
+ * Busca invoices (faturas) do usuário no Stripe
+ */
+export async function fetchUserInvoices(): Promise<any[]> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return [];
+    }
+
+    const supabase = getSupabaseClient();
+    
+    // Buscar transações completadas do usuário
+    const { data: transactions, error } = await supabase
+      .from('transactions')
+      .select('stripe_session_id, created_at')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar transações:', error);
+      return [];
+    }
+
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
+
+    // Para cada transação, buscar invoice do Stripe
+    // Nota: Em produção, você pode criar uma Edge Function para buscar invoices do Stripe
+    // Por enquanto, retornamos dados básicos das transações
+    const invoices = transactions.map((tx: any) => ({
+      id: tx.stripe_session_id || `tx_${tx.id}`,
+      amount: 0, // Será preenchido pela Edge Function
+      currency: 'brl',
+      status: 'paid',
+      created: new Date(tx.created_at).getTime() / 1000,
+      hosted_invoice_url: null // Será preenchido pela Edge Function
+    }));
+
+    return invoices;
+  } catch (error: any) {
+    console.error('Erro ao buscar invoices:', error);
+    return [];
+  }
+}

@@ -15,7 +15,10 @@ import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
 import TutorialModal from './components/TutorialModal';
-import { getCurrentUser, signOut } from './services/supabaseService';
+import UserProfileModal from './components/UserProfile';
+import ResetPassword from './components/ResetPassword';
+import ConsentModal from './components/ConsentModal';
+import { getCurrentUser, signOut, checkPrivacyConsent } from './services/supabaseService';
 import { UserProfile } from './types';
 
 const App: React.FC = () => {
@@ -39,6 +42,17 @@ const App: React.FC = () => {
 
   // Tutorial State
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  // User Profile State
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Consent Modal State
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [isPolicyUpdate, setIsPolicyUpdate] = useState(false);
+
+  // Check if we're on the reset password page
+  const isResetPasswordPage = window.location.pathname === '/reset-password' || 
+                               window.location.search.includes('type=recovery');
 
   // Toast/Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -71,6 +85,13 @@ const App: React.FC = () => {
       // Carregar histórico de artes se o usuário estiver logado
       if (user) {
         loadUserArts();
+        
+        // Verificar se precisa de consentimento de privacidade
+        const consentCheck = await checkPrivacyConsent();
+        if (consentCheck.needsConsent) {
+          setIsPolicyUpdate(consentCheck.isPolicyUpdate);
+          setShowConsentModal(true);
+        }
       }
     };
     loadUser();
@@ -175,6 +196,13 @@ const App: React.FC = () => {
     setCredits(currentCredits);
     // Carregar histórico de artes após login
     await loadUserArts();
+    
+    // Verificar se precisa de consentimento de privacidade
+    const consentCheck = await checkPrivacyConsent();
+    if (consentCheck.needsConsent) {
+      setIsPolicyUpdate(consentCheck.isPolicyUpdate);
+      setShowConsentModal(true);
+    }
   };
 
   const handleLogout = async () => {
@@ -336,6 +364,17 @@ const App: React.FC = () => {
     setStep('mode_selection');
   };
 
+  // If we're on the reset password page, show only that component
+  if (isResetPasswordPage) {
+    return (
+      <ResetPassword 
+        onSuccess={() => {
+          window.location.href = '/';
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fcfdff] text-slate-900 selection:bg-indigo-100">
       <Header 
@@ -353,6 +392,7 @@ const App: React.FC = () => {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
       
       <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
@@ -386,6 +426,25 @@ const App: React.FC = () => {
           <TutorialModal
             isOpen={isTutorialOpen}
             onClose={() => setIsTutorialOpen(false)}
+          />
+        )}
+
+        {isProfileOpen && currentUser && (
+          <UserProfileModal
+            isOpen={isProfileOpen}
+            onClose={() => setIsProfileOpen(false)}
+            onLogout={handleLogout}
+          />
+        )}
+
+        {showConsentModal && currentUser && (
+          <ConsentModal
+            isOpen={showConsentModal}
+            isPolicyUpdate={isPolicyUpdate}
+            onAccept={() => {
+              setShowConsentModal(false);
+              setIsPolicyUpdate(false);
+            }}
           />
         )}
 

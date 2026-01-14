@@ -12,9 +12,10 @@ interface HeaderProps {
   currentUser: UserProfile | null;
   onOpenAuth: () => void;
   onLogout: () => void;
+  onOpenProfile: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout, onOpenProfile }) => {
   return (
     <header className="bg-white/80 backdrop-blur-xl border-b border-slate-100 sticky top-0 z-40">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
@@ -70,10 +71,13 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
             {/* Auth Button */}
             {currentUser ? (
               <div className="flex items-center gap-3">
-                <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+                <button
+                  onClick={onOpenProfile}
+                  className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl hover:border-indigo-200 transition-all cursor-pointer"
+                >
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Usuário</p>
                   <p className="text-xs font-black text-slate-900 truncate max-w-[120px]">{currentUser.email}</p>
-                </div>
+                </button>
                 <button 
                   onClick={onLogout}
                   className="px-4 py-2 text-slate-600 hover:text-red-600 font-bold text-xs uppercase tracking-widest transition-colors"

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { signIn, signUp } from '../services/supabaseService';
+import { signIn, signUp, resetPassword } from '../services/supabaseService';
 import { UserProfile } from '../types';
+import PrivacyPolicy from './PrivacyPolicy';
+import TermsOfService from './TermsOfService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -17,6 +19,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [privacyOptIn, setPrivacyOptIn] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetPasswordSent, setResetPasswordSent] = useState(false);
 
   if (!isOpen) return null;
 
@@ -42,7 +49,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
       // Autenticação via Supabase
       const result = mode === 'login' 
         ? await signIn(email, password)
-        : await signUp(email, password);
+        : await signUp(email, password, privacyOptIn);
 
       if (result.error) {
         setError(result.error);
@@ -66,6 +73,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
     setPassword('');
     setConfirmPassword('');
     setError('');
+    setPrivacyOptIn(false);
     setMode('login');
     onClose();
   };
@@ -75,6 +83,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
     setError('');
     setPassword('');
     setConfirmPassword('');
+    setShowForgotPassword(false);
+    setResetPasswordSent(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const result = await resetPassword(email);
+      
+      if (result.error) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+
+      setResetPasswordSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao enviar email de redefinição. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -129,17 +161,29 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-bold text-slate-700 mb-2">
-                Senha
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-sm font-bold text-slate-700">
+                  Senha
+                </label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-xs text-indigo-600 hover:text-indigo-700 font-bold transition-colors"
+                  >
+                    Esqueceu a senha?
+                  </button>
+                )}
+              </div>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
+                required={!showForgotPassword}
                 minLength={6}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 font-medium"
+                disabled={showForgotPassword}
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="••••••••"
               />
             </div>
@@ -163,6 +207,46 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
               </div>
             )}
 
+            {/* Privacy Opt-in (Signup only) */}
+            {mode === 'signup' && (
+              <div className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={privacyOptIn}
+                    onChange={(e) => setPrivacyOptIn(e.target.checked)}
+                    required
+                    className="mt-1 w-5 h-5 text-indigo-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                  />
+                  <span className="text-sm text-slate-700 leading-relaxed">
+                    Eu concordo com os{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowTermsOfService(true);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-700 font-bold underline"
+                    >
+                      Termos de Uso
+                    </button>
+                    {' '}e{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowPrivacyPolicy(true);
+                      }}
+                      className="text-indigo-600 hover:text-indigo-700 font-bold underline"
+                    >
+                      Política de Privacidade
+                    </button>
+                    {' '}e autorizo o tratamento dos meus dados pessoais conforme a LGPD.
+                  </span>
+                </label>
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div className="p-3 bg-red-50 border-2 border-red-200 rounded-xl">
@@ -170,24 +254,80 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
               </div>
             )}
 
+            {/* Forgot Password Form */}
+            {showForgotPassword && (
+              <div className="p-4 bg-indigo-50 border-2 border-indigo-200 rounded-xl space-y-3">
+                {resetPasswordSent ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-indigo-900">
+                      ✓ Email enviado com sucesso!
+                    </p>
+                    <p className="text-xs text-indigo-700">
+                      Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setResetPasswordSent(false);
+                        setError('');
+                      }}
+                      className="w-full mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all"
+                    >
+                      Voltar ao Login
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-indigo-900">
+                      Redefinir Senha
+                    </p>
+                    <p className="text-xs text-indigo-700">
+                      Digite seu email e enviaremos um link para redefinir sua senha.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={isLoading || !email}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? 'Enviando...' : 'Enviar Email de Redefinição'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setError('');
+                      }}
+                      className="w-full py-2 text-slate-600 hover:text-slate-700 font-bold text-sm transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Processando...
-                </span>
-              ) : (
-                mode === 'login' ? 'Entrar' : 'Criar Conta'
-              )}
-            </button>
+            {!showForgotPassword && (
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Processando...
+                  </span>
+                ) : (
+                  mode === 'login' ? 'Entrar' : 'Criar Conta'
+                )}
+              </button>
+            )}
           </form>
 
           {/* Switch Mode */}
@@ -218,6 +358,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
           </div>
         </div>
       </div>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyPolicy && (
+        <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTermsOfService && (
+        <TermsOfService onClose={() => setShowTermsOfService(false)} />
+      )}
     </div>
   );
 };

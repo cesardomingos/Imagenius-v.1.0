@@ -32,6 +32,8 @@ export interface UserProfile {
   id: string;
   email: string;
   credits: number;
+  full_name?: string;
+  avatar_url?: string;
 }
 
 export interface Transaction {

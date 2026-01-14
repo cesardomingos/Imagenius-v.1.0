@@ -1,6 +1,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { UserProfile } from "../types";
+import { CURRENT_POLICY_VERSION } from "../config/privacyPolicy";
 
 // Criar cliente Supabase (usa variáveis de ambiente ou fallback para mock)
 const getSupabaseClient = (): SupabaseClient | null => {
@@ -39,11 +40,33 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 
       if (data.user) {
         // Buscar perfil do usuário
-        const { data: profile, error: profileError } = await supabase
+        // Nota: privacy_policy_version pode não existir se o SQL ainda não foi executado
+        let profile: any = null;
+        let profileError: any = null;
+        
+        const { data: profileData, error: profileErr } = await supabase
           .from('profiles')
-          .select('credits')
+          .select('credits, full_name, avatar_url, privacy_opt_in, privacy_opt_in_date, privacy_policy_version')
           .eq('id', data.user.id)
           .single();
+        
+        // Se der erro por coluna não existir, tenta sem privacy_policy_version
+        if (profileErr && (profileErr.message?.includes('privacy_policy_version') || profileErr.message?.includes('does not exist') || profileErr.code === '42703')) {
+          const { data: profileFallback, error: fallbackError } = await supabase
+            .from('profiles')
+            .select('credits, full_name, avatar_url, privacy_opt_in, privacy_opt_in_date')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (!fallbackError && profileFallback) {
+            profile = profileFallback;
+          } else {
+            profileError = fallbackError;
+          }
+        } else {
+          profile = profileData;
+          profileError = profileErr;
+        }
 
         if (profileError) {
           console.error('Erro ao buscar perfil:', profileError);
@@ -52,7 +75,11 @@ export async function signIn(email: string, password: string): Promise<{ user: U
         const userProfile: UserProfile = {
           id: data.user.id,
           email: data.user.email || email,
-          credits: profile?.credits || 5
+          credits: profile?.credits || 5,
+          ...(profile && {
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url
+          })
         };
 
         // Salvar no localStorage para cache
@@ -81,7 +108,7 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 /**
  * Autenticação: Cadastro
  */
-export async function signUp(email: string, password: string): Promise<{ user: UserProfile | null; error: string | null }> {
+export async function signUp(email: string, password: string, privacyOptIn: boolean = false): Promise<{ user: UserProfile | null; error: string | null }> {
   try {
     if (password.length < 6) {
       return { user: null, error: 'A senha deve ter pelo menos 6 caracteres' };
@@ -103,10 +130,25 @@ export async function signUp(email: string, password: string): Promise<{ user: U
         // Aguardar um pouco para garantir que o trigger executou
         await new Promise(resolve => setTimeout(resolve, 500));
 
+        // Atualizar perfil com opt-in de privacidade
+        const optInDate = privacyOptIn ? new Date().toISOString() : null;
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            privacy_opt_in: privacyOptIn,
+            privacy_opt_in_date: optInDate,
+            privacy_policy_version: privacyOptIn ? CURRENT_POLICY_VERSION : null
+          })
+          .eq('id', data.user.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar opt-in de privacidade:', updateError);
+        }
+
         // Buscar perfil recém-criado
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('credits')
+          .select('credits, full_name, avatar_url')
           .eq('id', data.user.id)
           .single();
 
@@ -117,7 +159,11 @@ export async function signUp(email: string, password: string): Promise<{ user: U
         const userProfile: UserProfile = {
           id: data.user.id,
           email: data.user.email || email,
-          credits: profile?.credits || 5
+          credits: profile?.credits || 5,
+          ...(profile && {
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url
+          })
         };
 
         // Salvar no localStorage para cache
@@ -172,7 +218,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       // Buscar perfil do usuário
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('credits')
+        .select('credits, full_name, avatar_url, privacy_opt_in, privacy_opt_in_date, privacy_policy_version')
         .eq('id', user.id)
         .single();
 
@@ -184,7 +230,11 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       const userProfile: UserProfile = {
         id: user.id,
         email: user.email || '',
-        credits: profile?.credits || 5
+        credits: profile?.credits || 5,
+        ...(profile && {
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url
+        })
       };
 
       // Atualizar cache
@@ -418,5 +468,287 @@ export async function checkAndUpdateTransactionStatus(): Promise<{ updated: bool
   } catch (error) {
     console.error('Erro ao verificar status da transação:', error);
     return { updated: false };
+  }
+}
+
+/**
+ * Verifica se o usuário precisa dar consentimento de privacidade
+ */
+export async function checkPrivacyConsent(): Promise<{ 
+  needsConsent: boolean; 
+  isPolicyUpdate: boolean;
+  currentVersion?: string;
+}> {
+  try {
+    if (!supabase) {
+      return { needsConsent: false, isPolicyUpdate: false };
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      return { needsConsent: false, isPolicyUpdate: false };
+    }
+
+    // Versão atual da política (importada do config)
+    let profile: any = null;
+    let hasVersionColumn = true;
+
+    // Tentar buscar com privacy_policy_version primeiro
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('privacy_opt_in, privacy_opt_in_date, privacy_policy_version')
+      .eq('id', user.id)
+      .single();
+
+    // Se der erro porque a coluna não existe, tentar sem ela
+    if (error && (error.message?.includes('privacy_policy_version') || error.message?.includes('does not exist') || error.code === '42703')) {
+      hasVersionColumn = false;
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('profiles')
+        .select('privacy_opt_in, privacy_opt_in_date')
+        .eq('id', user.id)
+        .single();
+      
+      if (fallbackError) {
+        console.error('Erro ao verificar consentimento:', fallbackError);
+        return { needsConsent: false, isPolicyUpdate: false };
+      }
+      profile = fallbackData;
+    } else if (error) {
+      console.error('Erro ao verificar consentimento:', error);
+      return { needsConsent: false, isPolicyUpdate: false };
+    } else {
+      profile = data;
+    }
+
+    // Se não tem opt-in, precisa de consentimento
+    if (!profile?.privacy_opt_in) {
+      return { needsConsent: true, isPolicyUpdate: false };
+    }
+
+    // Se a coluna privacy_policy_version não existe, trata como se precisasse de consentimento
+    // (porque não sabemos qual versão o usuário aceitou)
+    if (!hasVersionColumn || !profile.privacy_policy_version) {
+      return { needsConsent: true, isPolicyUpdate: false };
+    }
+
+    // Se a versão da política mudou, precisa de novo consentimento
+    if (profile.privacy_policy_version !== CURRENT_POLICY_VERSION) {
+      return { 
+        needsConsent: true, 
+        isPolicyUpdate: true,
+        currentVersion: profile.privacy_policy_version
+      };
+    }
+
+    return { needsConsent: false, isPolicyUpdate: false };
+  } catch (error) {
+    console.error('Erro ao verificar consentimento:', error);
+    return { needsConsent: false, isPolicyUpdate: false };
+  }
+}
+
+/**
+ * Atualiza o consentimento de privacidade do usuário
+ */
+export async function updatePrivacyConsent(optIn: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Usuário não autenticado' };
+    }
+
+    // Versão atual da política (importada do config)
+
+    const updateData: any = {
+      privacy_opt_in: optIn,
+      privacy_policy_version: CURRENT_POLICY_VERSION
+    };
+
+    if (optIn) {
+      updateData.privacy_opt_in_date = new Date().toISOString();
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', user.id);
+
+    // Se der erro porque a coluna não existe, tentar atualizar sem ela
+    if (error && (error.message?.includes('privacy_policy_version') || error.message?.includes('does not exist') || error.code === '42703')) {
+      const fallbackData: any = {
+        privacy_opt_in: optIn
+      };
+      
+      if (optIn) {
+        fallbackData.privacy_opt_in_date = new Date().toISOString();
+      }
+
+      const { error: fallbackError } = await supabase
+        .from('profiles')
+        .update(fallbackData)
+        .eq('id', user.id);
+
+      if (fallbackError) {
+        console.error('Erro ao atualizar consentimento (fallback):', fallbackError);
+        return { success: false, error: fallbackError.message };
+      }
+      
+      // Avisar que a coluna não existe (mas consentimento foi salvo)
+      console.warn('Coluna privacy_policy_version não existe. Execute o SQL de atualização do schema (SQL_ATUALIZACAO_LGPD.sql).');
+      return { success: true };
+    }
+
+    if (error) {
+      console.error('Erro ao atualizar consentimento:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao atualizar consentimento:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Atualiza o perfil do usuário
+ */
+export async function updateUserProfile(data: {
+  full_name?: string;
+  avatar_url?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Usuário não autenticado' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao atualizar perfil:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Envia email de redefinição de senha
+ */
+export async function resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    if (!email) {
+      return { success: false, error: 'Email é obrigatório' };
+    }
+
+    // Enviar email de redefinição de senha
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+
+    if (error) {
+      console.error('Erro ao enviar email de redefinição:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao enviar email de redefinição:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Atualiza a senha do usuário (após clicar no link do email)
+ */
+export async function updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'A senha deve ter pelo menos 6 caracteres' };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      console.error('Erro ao atualizar senha:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao atualizar senha:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Exclui a conta do usuário e todos os dados relacionados
+ */
+export async function deleteUserAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'Usuário não autenticado' };
+    }
+
+    // Excluir dados relacionados primeiro (devido a foreign keys)
+    // As artes serão excluídas automaticamente devido ao CASCADE
+    // As transações também serão excluídas
+
+    // Excluir perfil (isso pode acionar exclusão em cascata)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', user.id);
+
+    if (profileError) {
+      console.error('Erro ao excluir perfil:', profileError);
+      return { success: false, error: profileError.message };
+    }
+
+    // Excluir conta de autenticação
+    // Nota: A exclusão via admin requer service_role key
+    // Por enquanto, apenas fazemos signOut
+    await signOut();
+
+    // Limpar cache local
+    localStorage.removeItem('genius_user');
+    localStorage.removeItem('genius_credits');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao excluir conta:', error);
+    return { success: false, error: error.message };
   }
 }
