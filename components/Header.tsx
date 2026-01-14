@@ -77,6 +77,53 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
             </div>
           </div>
 
+          {/* Mobile Menu */}
+          <div className="md:hidden flex items-center gap-2">
+            {hasImages && (
+              <button 
+                onClick={goToGallery}
+                className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold text-xs uppercase tracking-widest transition-colors"
+              >
+                Galeria
+              </button>
+            )}
+            
+            {/* Auth Button Mobile */}
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onOpenProfile}
+                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg hover:border-indigo-200 dark:hover:border-indigo-700 transition-all cursor-pointer"
+                >
+                  <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Usuário</p>
+                  <p className="text-[10px] font-black text-slate-900 dark:text-white truncate max-w-[80px]">{currentUser.email}</p>
+                </button>
+                <button 
+                  onClick={onLogout}
+                  className="px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-500 font-bold text-[10px] uppercase tracking-widest transition-colors"
+                >
+                  Sair
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={onOpenAuth}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg transition-all shadow-lg active:scale-95"
+              >
+                Entrar
+              </button>
+            )}
+            
+            <button 
+              onClick={onReset}
+              className="bg-slate-900 dark:bg-slate-800 hover:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center gap-1.5"
+            >
+              Novo
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"/></svg>
+            </button>
+          </div>
+
+          {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-3">
             {hasImages && (
               <button 

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signIn, signUp, resetPassword } from '../services/supabaseService';
 import { UserProfile } from '../types';
+import { getReferralCodeFromUrl } from '../services/referralService';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 
@@ -24,6 +25,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetPasswordSent, setResetPasswordSent] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+
+  // Capturar código de referência da URL quando o modal abrir
+  useEffect(() => {
+    if (isOpen) {
+      const code = getReferralCodeFromUrl();
+      setReferralCode(code);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -49,7 +59,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
       // Autenticação via Supabase
       const result = mode === 'login' 
         ? await signIn(email, password)
-        : await signUp(email, password, privacyOptIn);
+        : await signUp(email, password, privacyOptIn, referralCode || undefined);
 
       if (result.error) {
         setError(result.error);

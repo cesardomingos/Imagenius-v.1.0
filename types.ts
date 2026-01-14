@@ -34,6 +34,8 @@ export interface UserProfile {
   credits: number;
   full_name?: string;
   avatar_url?: string;
+  referral_code?: string;
+  referred_by?: string;
 }
 
 export interface Transaction {
@@ -42,3 +44,7 @@ export interface Transaction {
   plan_id: string;
   created_at: number;
 }
+
+// Re-export achievements types
+export type { AchievementId, Achievement, UserAchievement } from './types/achievements';
+export { ACHIEVEMENTS } from './types/achievements';

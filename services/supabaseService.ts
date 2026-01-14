@@ -108,17 +108,34 @@ export async function signIn(email: string, password: string): Promise<{ user: U
 /**
  * Autenticação: Cadastro
  */
-export async function signUp(email: string, password: string, privacyOptIn: boolean = false): Promise<{ user: UserProfile | null; error: string | null }> {
+export async function signUp(
+  email: string, 
+  password: string, 
+  privacyOptIn: boolean = false,
+  referralCode?: string
+): Promise<{ user: UserProfile | null; error: string | null }> {
   try {
     if (password.length < 6) {
       return { user: null, error: 'A senha deve ter pelo menos 6 caracteres' };
     }
 
     if (supabase) {
+      // Preparar metadata com referral_code se fornecido
+      const userMetadata: Record<string, any> = {
+        privacy_opt_in: privacyOptIn,
+      };
+      
+      if (referralCode) {
+        userMetadata.referral_code = referralCode;
+      }
+
       // Cadastro real com Supabase
       const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: userMetadata
+        }
       });
 
       if (error) {
@@ -148,7 +165,7 @@ export async function signUp(email: string, password: string, privacyOptIn: bool
         // Buscar perfil recém-criado
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('credits, full_name, avatar_url')
+          .select('credits, full_name, avatar_url, referral_code, referred_by')
           .eq('id', data.user.id)
           .single();
 
@@ -218,7 +235,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       // Buscar perfil do usuário
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('credits, full_name, avatar_url, privacy_opt_in, privacy_opt_in_date, privacy_policy_version')
+        .select('credits, full_name, avatar_url, privacy_opt_in, privacy_opt_in_date, privacy_policy_version, referral_code, referred_by')
         .eq('id', user.id)
         .single();
 
@@ -233,7 +250,9 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
         credits: profile?.credits || 5,
         ...(profile && {
           full_name: profile.full_name,
-          avatar_url: profile.avatar_url
+          avatar_url: profile.avatar_url,
+          referral_code: profile.referral_code,
+          referred_by: profile.referred_by
         })
       };
 

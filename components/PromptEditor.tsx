@@ -6,14 +6,18 @@ interface PromptEditorProps {
   suggestions: PromptSuggestion[];
   onGenerate: (prompts: string[]) => void;
   credits?: number;
+  onPromptEdit?: (editedCount: number) => void;
 }
 
-const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, credits = 0 }) => {
+const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, credits = 0, onPromptEdit }) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   // Store custom edits for each suggestion
   const [editedPrompts, setEditedPrompts] = useState<Record<number, string>>(
     suggestions.reduce((acc, s) => ({ ...acc, [s.id]: s.text }), {})
   );
+  
+  // Track edited prompts count
+  const [editedCount, setEditedCount] = useState(0);
 
   const toggleSelection = (id: number) => {
     setSelectedIds(prev => 
@@ -22,7 +26,25 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
   };
 
   const handleEdit = (id: number, text: string) => {
-    setEditedPrompts(prev => ({ ...prev, [id]: text }));
+    const originalText = suggestions.find(s => s.id === id)?.text || '';
+    const isEdited = text.trim() !== originalText.trim();
+    
+    setEditedPrompts(prev => {
+      const newPrompts = { ...prev, [id]: text };
+      
+      // Count how many prompts have been edited
+      const edited = Object.entries(newPrompts).filter(([key, value]) => {
+        const original = suggestions.find(s => s.id === parseInt(key))?.text || '';
+        return value.trim() !== original.trim();
+      }).length;
+      
+      setEditedCount(edited);
+      if (onPromptEdit) {
+        onPromptEdit(edited);
+      }
+      
+      return newPrompts;
+    });
   };
 
   const handleGenerateClick = () => {

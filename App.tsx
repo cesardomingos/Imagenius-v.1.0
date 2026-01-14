@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
-import { fetchUserCredits, deductCredits, checkAndUpdateTransactionStatus } from './services/supabaseService';
+import { fetchUserCredits, deductCredits, checkAndUpdateTransactionStatus, getCurrentUser, signOut, checkPrivacyConsent } from './services/supabaseService';
 import { startStripeCheckout } from './services/stripeService';
 import { saveUserArt, fetchUserArts } from './services/communityService';
 import ImageUploader from './components/ImageUploader';
@@ -20,8 +20,13 @@ import ResetPassword from './components/ResetPassword';
 import ConsentModal from './components/ConsentModal';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
-import { getCurrentUser, signOut, checkPrivacyConsent } from './services/supabaseService';
-import { UserProfile } from './types';
+import AchievementToast from './components/AchievementToast';
+import { UserProfile, AchievementId } from './types';
+import { 
+  checkImageGenerationAchievements, 
+  checkVisualAlchemistAchievement,
+  checkPurchaseAchievements 
+} from './services/achievementService';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('mode_selection');
@@ -62,6 +67,9 @@ const App: React.FC = () => {
 
   // Toast/Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  
+  // Achievement State
+  const [unlockedAchievement, setUnlockedAchievement] = useState<AchievementId | null>(null);
 
   // Função para carregar histórico de artes do usuário
   const loadUserArts = useCallback(async () => {
@@ -146,6 +154,21 @@ const App: React.FC = () => {
               const newCredits = await fetchUserCredits();
               setCredits(newCredits);
               
+              // Verificar achievements de compra
+              if (transaction) {
+                const { hasAchievement } = await import('./services/achievementService');
+                const isFirstPurchase = !(await hasAchievement('art_patron'));
+                
+                const purchaseAchievements = await checkPurchaseAchievements(
+                  isFirstPurchase,
+                  transaction.plan_id
+                );
+                
+                if (purchaseAchievements.length > 0) {
+                  setUnlockedAchievement(purchaseAchievements[0]);
+                }
+              }
+              
               setToast({
                 message: `Pagamento confirmado! ${creditsAdded} créditos adicionados ao seu Atelier.`,
                 type: 'success'
@@ -224,12 +247,24 @@ const App: React.FC = () => {
     setStep('upload');
   };
 
-  const handleImageUpload = (base64: string, mimeType: string) => {
+  const handleImageUpload = async (base64: string, mimeType: string) => {
     if (projectMode === 'single') {
       setReferenceImages([{ data: base64, mimeType }]);
       setStep('themes');
     } else {
-      setReferenceImages(prev => [...prev, { data: base64, mimeType }].slice(0, 5));
+      const newImages = [...referenceImages, { data: base64, mimeType }].slice(0, 5);
+      setReferenceImages(newImages);
+      
+      // Verificar achievement "Alquimista Visual" quando usar 5 imagens no modo studio
+      if (currentUser && newImages.length === 5 && projectMode === 'studio') {
+        const unlocked = await checkVisualAlchemistAchievement();
+        if (unlocked) {
+          setUnlockedAchievement(unlocked);
+          // Atualizar créditos se ganhou recompensa
+          const updatedCredits = await fetchUserCredits();
+          setCredits(updatedCredits);
+        }
+      }
     }
   };
 
@@ -281,6 +316,7 @@ const App: React.FC = () => {
     
     let successfulGenerations = 0;
     let creditsDeducted = 0;
+    const isFirstImage = generatedImages.length === 0;
     
     for (let i = 0; i < selectedPrompts.length; i++) {
       setBatchStatus(prev => prev ? { ...prev, current: i + 1 } : null);
@@ -316,6 +352,23 @@ const App: React.FC = () => {
     }
 
     setBatchStatus(null);
+
+    // Verificar achievements relacionados à geração de imagens
+    if (currentUser && successfulGenerations > 0) {
+      // Calcular imagens geradas nas últimas 24h
+      const now = Date.now();
+      const oneDayAgo = now - (24 * 60 * 60 * 1000);
+      const recentImages = generatedImages.filter(img => img.timestamp >= oneDayAgo).length + successfulGenerations;
+      
+      const unlocked = await checkImageGenerationAchievements(
+        isFirstImage && successfulGenerations > 0,
+        recentImages
+      );
+      
+      if (unlocked.length > 0) {
+        setUnlockedAchievement(unlocked[0]);
+      }
+    }
 
     // Mostrar toast com feedback sobre créditos gastos
     if (creditsDeducted > 0) {
@@ -425,6 +478,15 @@ const App: React.FC = () => {
             isVisible={true}
             onClose={() => setToast(null)}
             duration={6000}
+          />
+        )}
+
+        {/* Achievement Toast */}
+        {unlockedAchievement && (
+          <AchievementToast
+            achievementId={unlockedAchievement}
+            isVisible={!!unlockedAchievement}
+            onClose={() => setUnlockedAchievement(null)}
           />
         )}
 
@@ -644,7 +706,20 @@ const App: React.FC = () => {
                     <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.3em]">Refinando o DNA Artístico</p>
                   </div>
                 </div>
-                <PromptEditor suggestions={suggestions} onGenerate={handleGenerateBatch} credits={credits} />
+                <PromptEditor 
+                  suggestions={suggestions} 
+                  onGenerate={handleGenerateBatch} 
+                  credits={credits}
+                  onPromptEdit={async (editedCount) => {
+                    if (currentUser && editedCount >= 5) {
+                      const { checkArtDirectorAchievement } = await import('./services/achievementService');
+                      const unlocked = await checkArtDirectorAchievement(editedCount);
+                      if (unlocked) {
+                        setUnlockedAchievement(unlocked);
+                      }
+                    }
+                  }}
+                />
               </div>
             )}
 

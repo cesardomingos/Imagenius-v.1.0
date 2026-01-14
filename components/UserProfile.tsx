@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser, updateUserProfile, deleteUserAccount, resetPassword } from '../services/supabaseService';
 import { fetchUserInvoices } from '../services/stripeService';
+import { getReferralLink, copyReferralLink, getReferralStats } from '../services/referralService';
 import { UserProfile as UserProfileType } from '../types';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
@@ -36,13 +37,32 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetPasswordSent, setResetPasswordSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'invoices'>('profile');
+  const [referralLink, setReferralLink] = useState<string | null>(null);
+  const [referralStats, setReferralStats] = useState<{ totalReferrals: number; totalCreditsEarned: number } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       loadUserData();
       loadInvoices();
+      loadReferralData();
     }
   }, [isOpen]);
+
+  const loadReferralData = async () => {
+    const link = await getReferralLink();
+    setReferralLink(link);
+    const stats = await getReferralStats();
+    setReferralStats(stats);
+  };
+
+  const handleCopyLink = async () => {
+    const success = await copyReferralLink();
+    if (success) {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 3000);
+    }
+  };
 
   const loadUserData = async () => {
     setLoading(true);
@@ -305,9 +325,66 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                 </button>
               </div>
 
+              {/* Referral Section */}
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-700 space-y-4">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Programa de Indicação</h3>
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 space-y-4">
+                  <div>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Seu Link de Indicação
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={referralLink || 'Carregando...'}
+                        readOnly
+                        className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-lg text-sm font-mono text-slate-600 dark:text-slate-300"
+                      />
+                      <button
+                        onClick={handleCopyLink}
+                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                          linkCopied
+                            ? 'bg-green-500 text-white'
+                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                        }`}
+                      >
+                        {linkCopied ? '✓ Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {referralStats && (
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                          Indicações
+                        </p>
+                        <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                          {referralStats.totalReferrals}
+                        </p>
+                      </div>
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                          Créditos Ganhos
+                        </p>
+                        <p className="text-2xl font-black text-green-600 dark:text-green-400">
+                          +{referralStats.totalCreditsEarned}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="pt-2 border-t border-indigo-200 dark:border-indigo-700">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                      <strong className="text-indigo-700 dark:text-indigo-300">Como funciona:</strong> Compartilhe seu link único. Quando alguém se cadastrar usando seu link e confirmar o email, você ganha <strong className="text-indigo-700 dark:text-indigo-300">5 créditos</strong> automaticamente!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Security Section */}
-              <div className="pt-6 border-t border-slate-200 space-y-3">
-                <h3 className="text-lg font-black text-slate-900">Segurança</h3>
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Segurança</h3>
                 {!showResetPassword ? (
                   <button
                     onClick={() => setShowResetPassword(true)}
