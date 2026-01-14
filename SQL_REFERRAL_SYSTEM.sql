@@ -61,6 +61,8 @@ RETURNS TRIGGER AS $$
 DECLARE
   referral_code_value TEXT;
   referred_by_user_id UUID;
+  referral_count INTEGER;
+  ambassador_level TEXT;
 BEGIN
   -- Gerar código de referência único
   referral_code_value := generate_referral_code();
@@ -115,18 +117,29 @@ BEGIN
     SET credits = credits + 5
     WHERE id = referred_by_user_id;
     
-    -- Registrar achievement "Embaixador" se o referrer ainda não tem
-    INSERT INTO public.user_achievements (user_id, achievement_id, unlocked_at, reward_claimed)
-    SELECT 
-      referred_by_user_id,
-      'ambassador'::TEXT,
-      NOW(),
-      FALSE
-    WHERE NOT EXISTS (
-      SELECT 1 FROM public.user_achievements 
-      WHERE user_id = referred_by_user_id 
-      AND achievement_id = 'ambassador'
-    );
+    -- Registrar achievement "Embaixador" - verificar quantas pessoas o referrer já convidou
+    -- (incluindo este novo usuário que acabou de se cadastrar)
+    SELECT COUNT(*) INTO referral_count
+    FROM public.profiles
+    WHERE referred_by = referred_by_user_id;
+    
+    -- Determinar nível baseado no número de referências
+    IF referral_count >= 20 THEN
+      ambassador_level := 'gold';
+    ELSIF referral_count >= 5 THEN
+      ambassador_level := 'silver';
+    ELSE
+      ambassador_level := 'bronze';
+    END IF;
+    
+    -- Inserir ou atualizar achievement
+    INSERT INTO public.user_achievements (user_id, achievement_id, level, progress, unlocked_at, reward_claimed)
+    VALUES (referred_by_user_id, 'ambassador'::TEXT, ambassador_level, referral_count, NOW(), FALSE)
+    ON CONFLICT (user_id, achievement_id) 
+    DO UPDATE SET 
+      level = ambassador_level,
+      progress = referral_count,
+      unlocked_at = NOW();
   END IF;
   
   RETURN NEW;

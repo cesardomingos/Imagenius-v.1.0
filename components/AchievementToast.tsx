@@ -1,15 +1,43 @@
 import React, { useEffect, useState } from 'react';
-import { Achievement, AchievementId, ACHIEVEMENTS } from '../types/achievements';
+import { Achievement, AchievementId, ACHIEVEMENTS, AchievementLevel } from '../types/achievements';
 
 interface AchievementToastProps {
   achievementId: AchievementId;
+  level?: AchievementLevel;
   isVisible: boolean;
   onClose: () => void;
 }
 
-const AchievementToast: React.FC<AchievementToastProps> = ({ achievementId, isVisible, onClose }) => {
+const AchievementToast: React.FC<AchievementToastProps> = ({ achievementId, level = 'bronze', isVisible, onClose }) => {
   const [showConfetti, setShowConfetti] = useState(false);
   const achievement = ACHIEVEMENTS[achievementId];
+  
+  const getLevelName = (lvl: AchievementLevel) => {
+    switch (lvl) {
+      case 'bronze': return 'Bronze';
+      case 'silver': return 'Prata';
+      case 'gold': return 'Ouro';
+    }
+  };
+
+  const getLevelEmoji = (lvl: AchievementLevel) => {
+    switch (lvl) {
+      case 'bronze': return '🥉';
+      case 'silver': return '🥈';
+      case 'gold': return '🥇';
+    }
+  };
+
+  const getRewardAmount = () => {
+    if (achievement.isUnique && achievement.reward) {
+      return achievement.reward.amount;
+    }
+    if (achievement.levels) {
+      const levelConfig = achievement.levels.find(l => l.level === level);
+      return levelConfig?.reward.amount || 0;
+    }
+    return 0;
+  };
 
   useEffect(() => {
     if (isVisible) {
@@ -73,18 +101,20 @@ const AchievementToast: React.FC<AchievementToastProps> = ({ achievementId, isVi
                 </button>
               </div>
               
-              <p className="text-lg font-bold text-white mb-1">
+              <p className="text-lg font-bold text-white mb-1 flex items-center gap-2">
                 {achievement.name}
+                <span className="text-2xl">{getLevelEmoji(level)}</span>
+                <span className="text-xs font-normal text-white/80">({getLevelName(level)})</span>
               </p>
               <p className="text-sm text-white/90 mb-3">
-                {achievement.description}
+                {achievement.levels && achievement.levels.find(l => l.level === level)?.description || achievement.description}
               </p>
 
               {/* Reward Badge */}
-              {achievement.reward && (
+              {getRewardAmount() > 0 && (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
                   <span className="text-sm font-black text-white">
-                    +{achievement.reward.amount} crédito{achievement.reward.amount > 1 ? 's' : ''} cortesia do gênio!
+                    +{getRewardAmount()} crédito{getRewardAmount() > 1 ? 's' : ''} cortesia do gênio!
                   </span>
                 </div>
               )}

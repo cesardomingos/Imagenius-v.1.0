@@ -13,9 +13,10 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onLogout: () => void;
   onOpenProfile: () => void;
+  hasNewAchievement?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout, onOpenProfile }) => {
+const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout, onOpenProfile, hasNewAchievement = false }) => {
   const { theme, toggleTheme } = useTheme();
   
   return (
@@ -93,8 +94,11 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
               <div className="flex items-center gap-2">
                 <button
                   onClick={onOpenProfile}
-                  className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg hover:border-indigo-200 dark:hover:border-indigo-700 transition-all cursor-pointer"
+                  className="relative px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg hover:border-indigo-200 dark:hover:border-indigo-700 transition-all cursor-pointer"
                 >
+                  {hasNewAchievement && (
+                    <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
+                  )}
                   <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Usuário</p>
                   <p className="text-[10px] font-black text-slate-900 dark:text-white truncate max-w-[80px]">{currentUser.email}</p>
                 </button>
@@ -139,8 +143,11 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
               <div className="flex items-center gap-3">
                 <button
                   onClick={onOpenProfile}
-                  className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:border-indigo-200 dark:hover:border-indigo-700 transition-all cursor-pointer"
+                  className="relative px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl hover:border-indigo-200 dark:hover:border-indigo-700 transition-all cursor-pointer"
                 >
+                  {hasNewAchievement && (
+                    <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
+                  )}
                   <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Usuário</p>
                   <p className="text-xs font-black text-slate-900 dark:text-white truncate max-w-[120px]">{currentUser.email}</p>
                 </button>

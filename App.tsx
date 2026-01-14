@@ -22,6 +22,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import AchievementToast from './components/AchievementToast';
 import { UserProfile, AchievementId } from './types';
+import { AchievementLevel } from './types/achievements';
 import { 
   checkImageGenerationAchievements, 
   checkVisualAlchemistAchievement,
@@ -69,7 +70,8 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   
   // Achievement State
-  const [unlockedAchievement, setUnlockedAchievement] = useState<AchievementId | null>(null);
+  const [unlockedAchievement, setUnlockedAchievement] = useState<{ id: AchievementId; level?: AchievementLevel } | null>(null);
+  const [hasNewAchievement, setHasNewAchievement] = useState(false);
 
   // Função para carregar histórico de artes do usuário
   const loadUserArts = useCallback(async () => {
@@ -165,7 +167,11 @@ const App: React.FC = () => {
                 );
                 
                 if (purchaseAchievements.length > 0) {
-                  setUnlockedAchievement(purchaseAchievements[0]);
+                  // Buscar nível do achievement desbloqueado
+                  const { getUserAchievementLevel } = await import('./services/achievementService');
+                  const level = await getUserAchievementLevel(purchaseAchievements[0]);
+                  setUnlockedAchievement({ id: purchaseAchievements[0], level: level || 'gold' });
+                  setHasNewAchievement(true);
                 }
               }
               
@@ -239,6 +245,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
     setCredits(5); // Reset para créditos padrão
     setGeneratedImages([]); // Limpar galeria ao fazer logout
+    setHasNewAchievement(false);
   };
 
   const handleModeSelection = (mode: ProjectMode) => {
@@ -259,7 +266,8 @@ const App: React.FC = () => {
       if (currentUser && newImages.length === 5 && projectMode === 'studio') {
         const unlocked = await checkVisualAlchemistAchievement();
         if (unlocked) {
-          setUnlockedAchievement(unlocked);
+          setUnlockedAchievement({ id: unlocked, level: 'gold' });
+          setHasNewAchievement(true);
           // Atualizar créditos se ganhou recompensa
           const updatedCredits = await fetchUserCredits();
           setCredits(updatedCredits);
@@ -285,6 +293,16 @@ const App: React.FC = () => {
   const handleSuggestPrompts = async () => {
     const validThemes = themes.filter(t => t.trim() !== '');
     if (referenceImages.length === 0 || validThemes.length === 0) return;
+    
+    // Verificar se o usuário está logado
+    if (!currentUser) {
+      setToast({
+        message: 'Você precisa estar logado para continuar. Faça login ou crie uma conta.',
+        type: 'warning'
+      });
+      setIsAuthOpen(true);
+      return;
+    }
     
     setIsProcessing(true);
     setLoadingMsg('O Gênio está analisando suas referências...');
@@ -366,7 +384,11 @@ const App: React.FC = () => {
       );
       
       if (unlocked.length > 0) {
-        setUnlockedAchievement(unlocked[0]);
+        // Buscar nível do achievement desbloqueado
+        const { getUserAchievementLevel } = await import('./services/achievementService');
+        const level = await getUserAchievementLevel(unlocked[0]);
+        setUnlockedAchievement({ id: unlocked[0], level: level || 'bronze' });
+        setHasNewAchievement(true);
       }
     }
 
@@ -417,10 +439,13 @@ const App: React.FC = () => {
   };
 
   const resetApp = () => {
+    // "Novo +" deve iniciar direto o fluxo de Estética Coerente (modo single)
+    setProjectMode('single');
     setReferenceImages([]);
     setThemes(['']);
     setSuggestions([]);
-    setStep('mode_selection');
+    setStep('upload');
+    setBatchStatus(null);
   };
 
   // If we're on the reset password page, show only that component
@@ -451,7 +476,11 @@ const App: React.FC = () => {
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
-        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenProfile={() => {
+          setIsProfileOpen(true);
+          setHasNewAchievement(false);
+        }}
+        hasNewAchievement={hasNewAchievement}
       />
       
       <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
@@ -484,7 +513,8 @@ const App: React.FC = () => {
         {/* Achievement Toast */}
         {unlockedAchievement && (
           <AchievementToast
-            achievementId={unlockedAchievement}
+            achievementId={unlockedAchievement.id}
+            level={unlockedAchievement.level}
             isVisible={!!unlockedAchievement}
             onClose={() => setUnlockedAchievement(null)}
           />
@@ -540,7 +570,7 @@ const App: React.FC = () => {
                       <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
-                      <span>Como funciona a Estética Coerente?</span>
+                      <span>Como funciona a Preservação de DNA?</span>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
@@ -553,8 +583,8 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 bg-white dark:bg-slate-700 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                       <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Estética Coerente</h3>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Fidelidade absoluta a partir de uma única imagem de referência.</p>
+                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Preservar DNA</h3>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Fidelidade absoluta ao estilo. O Gênio captura a alma de uma única imagem para criar variações que mantêm a mesma identidade visual.</p>
                   </button>
 
                   <button 
@@ -564,8 +594,8 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                       <svg className="w-8 h-8 text-white dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                     </div>
-                    <h3 className="text-2xl font-black text-white dark:text-slate-100 mb-3">Fusão Criativa</h3>
-                    <p className="text-slate-400 dark:text-slate-300 font-medium leading-relaxed">Misture até 5 dimensões visuais: 1 Estilo + 4 Contextos.</p>
+                    <h3 className="text-2xl font-black text-white dark:text-slate-100 mb-3">Fundir Ideias</h3>
+                    <p className="text-slate-400 dark:text-slate-300 font-medium leading-relaxed">O laboratório do alquimista. Misture o DNA de várias referências (até 5) para criar algo inédito, unindo estilos, luzes e contextos.</p>
                   </button>
                 </div>
 
@@ -715,7 +745,11 @@ const App: React.FC = () => {
                       const { checkArtDirectorAchievement } = await import('./services/achievementService');
                       const unlocked = await checkArtDirectorAchievement(editedCount);
                       if (unlocked) {
-                        setUnlockedAchievement(unlocked);
+                        // Buscar nível do achievement desbloqueado
+                        const { getUserAchievementLevel } = await import('./services/achievementService');
+                        const level = await getUserAchievementLevel(unlocked);
+                        setUnlockedAchievement({ id: unlocked, level: level || 'bronze' });
+                        setHasNewAchievement(true);
                       }
                     }
                   }}

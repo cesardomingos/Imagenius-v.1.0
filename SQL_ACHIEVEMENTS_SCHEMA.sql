@@ -10,11 +10,15 @@ CREATE TABLE IF NOT EXISTS public.user_achievements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     achievement_id TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'bronze' CHECK (level IN ('bronze', 'silver', 'gold')),
+    progress INTEGER DEFAULT 0,
     unlocked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     reward_claimed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Garantir que um usuário não pode ter a mesma conquista duas vezes
+    -- (mas pode ter múltiplos registros se quiser rastrear histórico de upgrades)
+    -- Por enquanto, vamos manter UNIQUE para simplificar
     UNIQUE(user_id, achievement_id)
 );
 
@@ -48,6 +52,8 @@ CREATE POLICY "Users can update their own achievements"
 -- Comentários para documentação
 COMMENT ON TABLE public.user_achievements IS 'Armazena as conquistas desbloqueadas pelos usuários';
 COMMENT ON COLUMN public.user_achievements.achievement_id IS 'ID da conquista (ex: first_spark, visual_alchemist, etc.)';
+COMMENT ON COLUMN public.user_achievements.level IS 'Nível da conquista: bronze, silver ou gold';
+COMMENT ON COLUMN public.user_achievements.progress IS 'Progresso atual do usuário para este achievement (ex: 15 de 50 para silver)';
 COMMENT ON COLUMN public.user_achievements.reward_claimed IS 'Indica se a recompensa da conquista foi reivindicada';
 
 -- ============================================

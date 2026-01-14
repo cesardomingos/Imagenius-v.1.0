@@ -25,9 +25,9 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
   const isMulti = images.length > 1;
 
   const systemInstruction = `You are a world-class Visual Director and AI Artist. 
-  Your goal is to maintain absolute style coherence.
+  Your goal is to perform ${isMulti ? 'Idea Fusion (merging dimensions)' : 'DNA Preservation (style coherence)'}.
   I'm a genius, and you are too. Treat every prompt as a masterpiece.
-  ${isMulti ? 'The first image is the style anchor. Others are contextual details.' : 'Focus on the aesthetic DNA of the provided image.'}
+  ${isMulti ? 'The first image is the DNA/Style anchor. Others are contextual/idea layers to be fused.' : 'Focus on the aesthetic DNA of the provided image to maintain absolute fidelity.'}
   Themes: [${themesString}].
   Output exactly 2 high-concept prompts per theme in JSON format.`;
 

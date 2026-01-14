@@ -5,6 +5,7 @@ import { getReferralLink, copyReferralLink, getReferralStats } from '../services
 import { UserProfile as UserProfileType } from '../types';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
+import AchievementsGallery from './AchievementsGallery';
 
 interface UserProfileProps {
   isOpen: boolean;
@@ -36,10 +37,11 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetPasswordSent, setResetPasswordSent] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'invoices'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'invoices' | 'achievements'>('profile');
   const [referralLink, setReferralLink] = useState<string | null>(null);
   const [referralStats, setReferralStats] = useState<{ totalReferrals: number; totalCreditsEarned: number } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -236,6 +238,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
           >
             Faturas
           </button>
+          <button
+            onClick={() => setActiveTab('achievements')}
+            className={`flex-1 px-6 py-4 font-bold transition-colors ${
+              activeTab === 'achievements'
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Conquistas
+          </button>
         </div>
 
         {/* Content */}
@@ -243,6 +255,15 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+            </div>
+          ) : activeTab === 'achievements' ? (
+            <div className="flex items-center justify-center py-10">
+              <button
+                onClick={() => setShowAchievements(true)}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all"
+              >
+                Ver Todas as Conquistas
+              </button>
             </div>
           ) : activeTab === 'profile' ? (
             <div className="space-y-6 max-w-2xl mx-auto">
@@ -564,6 +585,14 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
       {/* Terms of Service Modal */}
       {showTermsOfService && (
         <TermsOfService onClose={() => setShowTermsOfService(false)} />
+      )}
+
+      {/* Achievements Gallery Modal */}
+      {showAchievements && (
+        <AchievementsGallery
+          isOpen={showAchievements}
+          onClose={() => setShowAchievements(false)}
+        />
       )}
     </div>
   );
