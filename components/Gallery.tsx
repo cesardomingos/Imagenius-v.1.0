@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GeneratedImage } from '../types';
+import { shareArt, checkIfArtIsShared } from '../services/communityService';
 
 interface GalleryProps {
   images: GeneratedImage[];
@@ -10,6 +11,9 @@ interface GalleryProps {
 
 const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 }) => {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
+  const [isShared, setIsShared] = useState<boolean>(false);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const downloadImage = (url: string, id: string) => {
     const link = document.createElement('a');
@@ -18,6 +22,47 @@ const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Verificar se a imagem selecionada já está compartilhada
+  useEffect(() => {
+    if (selectedImage) {
+      checkIfArtIsShared(selectedImage.url).then(result => {
+        if (result.success) {
+          setIsShared(result.isShared);
+        }
+      });
+      setShareMessage(null);
+    } else {
+      setIsShared(false);
+      setShareMessage(null);
+    }
+  }, [selectedImage]);
+
+  const handleShareArt = async () => {
+    if (!selectedImage) return;
+
+    setIsSharing(true);
+    setShareMessage(null);
+
+    try {
+      const result = await shareArt(selectedImage.url, selectedImage.prompt);
+      
+      if (result.success) {
+        setIsShared(true);
+        setShareMessage('Arte compartilhada com sucesso com a comunidade! 🎨');
+        setTimeout(() => setShareMessage(null), 5000);
+      } else {
+        setShareMessage(result.error || 'Erro ao compartilhar arte. Tente novamente.');
+        setTimeout(() => setShareMessage(null), 5000);
+      }
+    } catch (error: any) {
+      console.error('Erro ao compartilhar arte:', error);
+      setShareMessage('Erro ao compartilhar arte. Tente novamente.');
+      setTimeout(() => setShareMessage(null), 5000);
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   if (images.length === 0 && !isBatching) {
@@ -116,6 +161,46 @@ const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     Fazer Download
                   </button>
+                  
+                  <button 
+                    onClick={handleShareArt}
+                    disabled={isSharing || isShared}
+                    className={`w-full font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                      isShared
+                        ? 'bg-green-50 text-green-600 border-2 border-green-200 cursor-not-allowed'
+                        : isSharing
+                        ? 'bg-indigo-400 text-white cursor-wait'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}
+                  >
+                    {isSharing ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Compartilhando...
+                      </>
+                    ) : isShared ? (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg>
+                        Já Compartilhada
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                        Compartilhar com a Comunidade
+                      </>
+                    )}
+                  </button>
+                  
+                  {shareMessage && (
+                    <div className={`p-3 rounded-lg text-sm font-medium ${
+                      shareMessage.includes('sucesso') || shareMessage.includes('🎨')
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                    }`}>
+                      {shareMessage}
+                    </div>
+                  )}
+                  
                   <p className="text-center text-xs text-slate-400">Clique na imagem para ampliar se necessário.</p>
                 </div>
               </div>

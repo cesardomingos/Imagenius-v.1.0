@@ -211,6 +211,47 @@ export async function toggleLike(
 }
 
 /**
+ * Verifica se uma arte já está compartilhada na comunidade
+ * @param imageUrl - URL da imagem
+ * @returns Objeto com sucesso, se está compartilhada e ID da arte (se existir)
+ */
+export async function checkIfArtIsShared(
+  imageUrl: string
+): Promise<{ success: boolean; isShared: boolean; artId?: string; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, isShared: false, error: 'Supabase não configurado' };
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return { success: false, isShared: false, error: 'Usuário não autenticado' };
+    }
+
+    const { data, error } = await supabase
+      .from('community_arts')
+      .select('id, is_shared')
+      .eq('user_id', currentUser.id)
+      .eq('image_url', imageUrl)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao verificar se arte está compartilhada:', error);
+      return { success: false, isShared: false, error: error.message };
+    }
+
+    if (!data) {
+      return { success: true, isShared: false };
+    }
+
+    return { success: true, isShared: data.is_shared, artId: data.id };
+  } catch (error: any) {
+    console.error('Erro ao verificar se arte está compartilhada:', error);
+    return { success: false, isShared: false, error: error.message };
+  }
+}
+
+/**
  * Compartilhar uma arte na galeria comunitária
  * @param imageUrl - URL da imagem
  * @param prompt - Prompt usado para gerar
@@ -230,6 +271,26 @@ export async function shareArt(
       return { success: false, error: 'Usuário não autenticado' };
     }
 
+    // Verificar se a arte já existe
+    const checkResult = await checkIfArtIsShared(imageUrl);
+    
+    if (checkResult.success && checkResult.artId) {
+      // Se já existe, apenas atualizar is_shared para true
+      const { error: updateError } = await supabase
+        .from('community_arts')
+        .update({ is_shared: true })
+        .eq('id', checkResult.artId)
+        .eq('user_id', currentUser.id);
+
+      if (updateError) {
+        console.error('Erro ao atualizar compartilhamento:', updateError);
+        return { success: false, error: updateError.message };
+      }
+
+      return { success: true, artId: checkResult.artId };
+    }
+
+    // Se não existe, criar nova entrada
     const { data, error } = await supabase
       .from('community_arts')
       .insert({
