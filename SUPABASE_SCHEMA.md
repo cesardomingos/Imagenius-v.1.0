@@ -81,7 +81,147 @@ CREATE POLICY "Usuários podem criar transações pendentes" ON public.transacti
 -- O webhook usa service_role key para bypass RLS e atualizar o status
 ```
 
-## 3. Configuração do Cliente Supabase no Frontend
+## 3. Tabela de Artes da Comunidade
+Para armazenar as artes compartilhadas pelos usuários na galeria comunitária.
+
+```sql
+-- Criar tabela de artes da comunidade
+CREATE TABLE public.community_arts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  image_url TEXT NOT NULL, -- URL da imagem gerada (pode ser base64 ou URL externa)
+  prompt TEXT NOT NULL, -- Prompt usado para gerar a imagem
+  is_shared BOOLEAN DEFAULT false NOT NULL, -- Se o usuário permitiu compartilhamento
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Índices para melhor performance
+CREATE INDEX idx_community_arts_user_id ON public.community_arts(user_id);
+CREATE INDEX idx_community_arts_is_shared ON public.community_arts(is_shared) WHERE is_shared = true;
+CREATE INDEX idx_community_arts_created_at ON public.community_arts(created_at DESC);
+
+-- Habilitar Row Level Security
+ALTER TABLE public.community_arts ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de acesso
+-- Usuários podem ver todas as artes compartilhadas (is_shared = true)
+CREATE POLICY "Qualquer um pode ver artes compartilhadas" ON public.community_arts
+  FOR SELECT USING (is_shared = true);
+
+-- Usuários podem ver suas próprias artes (mesmo que não compartilhadas)
+CREATE POLICY "Usuários podem ver suas próprias artes" ON public.community_arts
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Usuários podem criar suas próprias artes
+CREATE POLICY "Usuários podem criar suas próprias artes" ON public.community_arts
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Usuários podem atualizar suas próprias artes (para alterar is_shared)
+CREATE POLICY "Usuários podem atualizar suas próprias artes" ON public.community_arts
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Usuários podem deletar suas próprias artes
+CREATE POLICY "Usuários podem deletar suas próprias artes" ON public.community_arts
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Função para atualizar updated_at automaticamente
+CREATE OR REPLACE FUNCTION public.update_community_arts_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_community_arts_updated_at
+  BEFORE UPDATE ON public.community_arts
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_community_arts_updated_at();
+```
+
+## 4. Tabela de Likes das Artes
+Para armazenar os likes que os usuários dão nas artes da comunidade.
+
+```sql
+-- Criar tabela de likes
+CREATE TABLE public.community_art_likes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  art_id UUID REFERENCES public.community_arts(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  -- Garantir que um usuário só pode dar like uma vez por arte
+  UNIQUE(art_id, user_id)
+);
+
+-- Índices para melhor performance
+CREATE INDEX idx_community_art_likes_art_id ON public.community_art_likes(art_id);
+CREATE INDEX idx_community_art_likes_user_id ON public.community_art_likes(user_id);
+
+-- Habilitar Row Level Security
+ALTER TABLE public.community_art_likes ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de acesso
+-- Qualquer um pode ver os likes (para contar)
+CREATE POLICY "Qualquer um pode ver likes" ON public.community_art_likes
+  FOR SELECT USING (true);
+
+-- Usuários podem criar seus próprios likes
+CREATE POLICY "Usuários podem criar seus próprios likes" ON public.community_art_likes
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Usuários podem deletar seus próprios likes (desfazer like)
+CREATE POLICY "Usuários podem deletar seus próprios likes" ON public.community_art_likes
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Nota: UPDATE não é permitido (apenas INSERT/DELETE para toggle de like)
+```
+
+## 5. View para Contagem de Likes
+View materializada para facilitar a consulta de artes com contagem de likes.
+
+```sql
+-- View para artes com contagem de likes
+CREATE OR REPLACE VIEW public.community_arts_with_likes AS
+SELECT 
+  ca.id,
+  ca.user_id,
+  ca.image_url,
+  ca.prompt,
+  ca.is_shared,
+  ca.created_at,
+  ca.updated_at,
+  p.email as author_email,
+  COALESCE(COUNT(cal.id), 0)::INTEGER as likes_count
+FROM public.community_arts ca
+LEFT JOIN public.profiles p ON ca.user_id = p.id
+LEFT JOIN public.community_art_likes cal ON ca.id = cal.art_id
+WHERE ca.is_shared = true
+GROUP BY ca.id, ca.user_id, ca.image_url, ca.prompt, ca.is_shared, ca.created_at, ca.updated_at, p.email
+ORDER BY ca.created_at DESC;
+
+-- Política para a view (herda das tabelas base)
+-- Não precisa de RLS separado, pois a view usa as políticas das tabelas base
+```
+
+## 6. Função Helper para Verificar se Usuário Deu Like
+Função para verificar se um usuário específico deu like em uma arte (útil no frontend).
+
+```sql
+-- Função para verificar se usuário deu like em uma arte
+CREATE OR REPLACE FUNCTION public.user_liked_art(art_id_param UUID, user_id_param UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 
+    FROM public.community_art_likes 
+    WHERE art_id = art_id_param AND user_id = user_id_param
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+## 7. Configuração do Cliente Supabase no Frontend
 
 Para usar a autenticação real, você precisa:
 
@@ -111,7 +251,7 @@ Para usar a autenticação real, você precisa:
    // await supabase.auth.signOut()
    ```
 
-## 4. Configuração do Stripe no Frontend
+## 8. Configuração do Stripe no Frontend
 
 Para usar o Stripe real, você precisa:
 
@@ -129,7 +269,7 @@ Para usar o Stripe real, você precisa:
    - Modo real: quando `VITE_STRIPE_PUBLISHABLE_KEY` está configurada
    - Modo mock: quando a chave não está configurada (para desenvolvimento)
 
-## 5. Edge Function para Criar Sessão de Checkout
+## 9. Edge Function para Criar Sessão de Checkout
 
 Crie uma Edge Function no Supabase chamada `create-checkout-session`:
 
@@ -732,7 +872,7 @@ serve(async (req) => {
    - Use `sk_live_...` apenas em produção
    - Nunca compartilhe ou commite suas chaves secretas no código
 
-## 6. Webhook do Stripe para Atualizar Créditos
+## 10. Webhook do Stripe para Atualizar Créditos
 
 Crie uma Edge Function chamada `stripe-webhook` para processar eventos do Stripe:
 

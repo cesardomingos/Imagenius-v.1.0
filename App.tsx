@@ -7,6 +7,7 @@ import { startStripeCheckout } from './services/stripeService';
 import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
 import Gallery from './components/Gallery';
+import CommunityGallery from './components/CommunityGallery';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import PricingModal from './components/PricingModal';
@@ -347,7 +348,7 @@ const App: React.FC = () => {
                   <h2 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter">
                     Imagine. Crie. <span className="text-genius-gradient">Materialize.</span>
                   </h2>
-                  <p className="text-slate-400 text-lg font-mono-genius uppercase tracking-[0.2em]">"I'm a genius, and you are too."</p>
+                  <p className="text-slate-400 text-lg font-mono-genius uppercase tracking-[0.2em]">I'm a genius, and you are too</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -372,6 +373,11 @@ const App: React.FC = () => {
                     <h3 className="text-2xl font-black text-white mb-3">Fusão Criativa</h3>
                     <p className="text-slate-400 font-medium leading-relaxed">Misture até 5 dimensões visuais: 1 Estilo + 4 Contextos.</p>
                   </button>
+                </div>
+
+                {/* Galeria da Comunidade */}
+                <div className="pt-16 mt-16 border-t border-slate-200">
+                  <CommunityGallery />
                 </div>
               </div>
             )}
@@ -547,7 +553,7 @@ const App: React.FC = () => {
              </div>
              <span className="font-black text-3xl tracking-tighter">Imagenius</span>
           </div>
-          <p className="text-slate-400 text-[10px] font-mono-genius uppercase tracking-[0.5em]">"I'm a genius, and you are too."</p>
+          <p className="text-slate-400 text-[10px] font-mono-genius uppercase tracking-[0.5em]">I'm a genius, and you are too</p>
           <div className="pt-10 flex justify-center gap-12">
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Todos os direitos reservados</span>
           </div>
