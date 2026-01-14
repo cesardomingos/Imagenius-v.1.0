@@ -1,6 +1,50 @@
 
 import React, { useState } from 'react';
 
+interface Competitor {
+  name: string;
+  coherence: boolean;
+  pricing: string;
+  templates: boolean;
+  credits: boolean;
+  api: boolean;
+}
+
+const COMPETITORS: Competitor[] = [
+  {
+    name: 'Midjourney',
+    coherence: false,
+    pricing: 'Assinatura mensal',
+    templates: false,
+    credits: false,
+    api: false
+  },
+  {
+    name: 'DALL-E',
+    coherence: false,
+    pricing: 'Por imagem',
+    templates: false,
+    credits: true,
+    api: true
+  },
+  {
+    name: 'Stable Diffusion',
+    coherence: false,
+    pricing: 'Open Source',
+    templates: false,
+    credits: false,
+    api: false
+  },
+  {
+    name: 'Imagenius',
+    coherence: true,
+    pricing: 'Créditos que não expiram',
+    templates: true,
+    credits: true,
+    api: false
+  }
+];
+
 const ComparisonSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'before' | 'after'>('before');
 

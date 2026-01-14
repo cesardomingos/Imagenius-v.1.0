@@ -6,10 +6,25 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2023-10-16",
 });
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+/**
+ * Obtém headers CORS baseado na origem da requisição
+ * Valida contra lista de origens permitidas da variável de ambiente
+ */
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = Deno.env.get("ALLOWED_ORIGINS")?.split(",").map(o => o.trim()) || [];
+  
+  // Se não houver origens configuradas, permitir todas (desenvolvimento)
+  // Em produção, sempre configurar ALLOWED_ORIGINS
+  const isAllowed = allowedOrigins.length === 0 || (origin && allowedOrigins.includes(origin));
+  const allowedOrigin = isAllowed && origin ? origin : (allowedOrigins[0] || "*");
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": isAllowed && origin ? "true" : "false",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+}
 
 // Créditos por plano
 const PLAN_CREDITS: Record<string, number> = {
@@ -41,6 +56,9 @@ const PIX_BONUS: Record<string, number> = {
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+  
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

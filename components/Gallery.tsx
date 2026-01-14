@@ -2,14 +2,42 @@
 import React, { useState, useEffect } from 'react';
 import { GeneratedImage } from '../types';
 import { shareArt, checkIfArtIsShared } from '../services/communityService';
+import Tooltip from './Tooltip';
 
 interface GalleryProps {
   images: GeneratedImage[];
   isBatching?: boolean;
   pendingCount?: number;
+  currentPage?: number;
+  totalItems?: number;
+  pageSize?: number;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  onCompare?: (originalUrl: string, generatedUrl: string) => void;
 }
 
-const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 }) => {
+interface GalleryProps {
+  images: GeneratedImage[];
+  isBatching?: boolean;
+  pendingCount?: number;
+  currentPage?: number;
+  totalItems?: number;
+  pageSize?: number;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+}
+
+const Gallery: React.FC<GalleryProps> = ({ 
+  images, 
+  isBatching, 
+  pendingCount = 0,
+  currentPage = 1,
+  totalItems = 0,
+  pageSize = 20,
+  onLoadMore,
+  hasMore = false,
+  onCompare
+}) => {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [isShared, setIsShared] = useState<boolean>(false);
   const [isSharing, setIsSharing] = useState<boolean>(false);
@@ -91,7 +119,7 @@ const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         {/* Progressive Loading Skeletons */}
         {Array.from({ length: Math.max(0, pendingCount) }).map((_, i) => (
           <div key={`pending-${i}`} className="relative bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 animate-pulse">
@@ -173,17 +201,18 @@ const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 
                     Fazer Download
                   </button>
                   
-                  <button 
-                    onClick={handleShareArt}
-                    disabled={isSharing || isShared}
-                    className={`w-full font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${
-                      isShared
-                        ? 'bg-green-50 text-green-600 border-2 border-green-200 cursor-not-allowed'
-                        : isSharing
-                        ? 'bg-indigo-400 text-white cursor-wait'
-                        : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                    }`}
-                  >
+                  <Tooltip content={isShared ? "Esta imagem já está compartilhada na galeria comunitária." : "Compartilhe sua criação na galeria comunitária para inspirar outros usuários."}>
+                    <button 
+                      onClick={handleShareArt}
+                      disabled={isSharing || isShared}
+                      className={`w-full font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                        isShared
+                          ? 'bg-green-50 text-green-600 border-2 border-green-200 cursor-not-allowed'
+                          : isSharing
+                          ? 'bg-indigo-400 text-white cursor-wait'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      }`}
+                    >
                     {isSharing ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -201,6 +230,7 @@ const Gallery: React.FC<GalleryProps> = ({ images, isBatching, pendingCount = 0 
                       </>
                     )}
                   </button>
+                  </Tooltip>
                   
                   {shareMessage && (
                     <div className={`p-3 rounded-lg text-sm font-medium ${

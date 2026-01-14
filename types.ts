@@ -4,6 +4,7 @@ export interface GeneratedImage {
   url: string;
   prompt: string;
   timestamp: number;
+  referenceImageUrl?: string; // URL da imagem de referência original
 }
 
 export interface PromptSuggestion {

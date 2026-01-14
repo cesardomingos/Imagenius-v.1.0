@@ -1,11 +1,20 @@
 
 import React from 'react';
 
-interface LoaderProps {
-  message?: string;
+export interface ProgressInfo {
+  current: number;
+  total: number;
+  stage: string;
 }
 
-const Loader: React.FC<LoaderProps> = ({ message = 'Iniciando raciocínio...' }) => {
+interface LoaderProps {
+  message?: string;
+  progress?: ProgressInfo;
+}
+
+const Loader: React.FC<LoaderProps> = ({ message = 'Iniciando raciocínio...', progress }) => {
+  const progressPercentage = progress ? (progress.current / progress.total) * 100 : 0;
+  
   return (
     <div className="flex flex-col items-center justify-center py-24 animate-in fade-in duration-1000">
       <div className="relative w-48 h-48 mb-12 flex items-center justify-center">
@@ -25,7 +34,7 @@ const Loader: React.FC<LoaderProps> = ({ message = 'Iniciando raciocínio...' })
         <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-pink-500 rounded-full"></div>
       </div>
       
-      <div className="text-center space-y-4">
+      <div className="text-center space-y-4 w-full max-w-md">
         <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
           I'm a genius, and <span className="text-indigo-600 dark:text-indigo-400">you are too.</span>
         </h3>
@@ -36,6 +45,22 @@ const Loader: React.FC<LoaderProps> = ({ message = 'Iniciando raciocínio...' })
             </p>
             <span className="w-8 h-[1px] bg-slate-200 dark:bg-slate-700"></span>
         </div>
+        
+        {/* Barra de Progresso */}
+        {progress && (
+          <div className="space-y-2 mt-6">
+            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-bold">{progress.stage}</span>
+              <span className="font-black">{progress.current}/{progress.total}</span>
+            </div>
+            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-genius-gradient transition-all duration-500 ease-out"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

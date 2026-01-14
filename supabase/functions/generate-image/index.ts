@@ -2,10 +2,25 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@1.34.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+/**
+ * Obtém headers CORS baseado na origem da requisição
+ * Valida contra lista de origens permitidas da variável de ambiente
+ */
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = Deno.env.get("ALLOWED_ORIGINS")?.split(",").map(o => o.trim()) || [];
+  
+  // Se não houver origens configuradas, permitir todas (desenvolvimento)
+  // Em produção, sempre configurar ALLOWED_ORIGINS
+  const isAllowed = allowedOrigins.length === 0 || (origin && allowedOrigins.includes(origin));
+  const allowedOrigin = isAllowed && origin ? origin : (allowedOrigins[0] || "*");
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Credentials": isAllowed && origin ? "true" : "false",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+}
 
 interface RequestBody {
   images: Array<{ data: string; mimeType: string }>;
@@ -41,23 +56,111 @@ function validateImageSize(base64Data: string, maxSizeMB: number = 10): boolean 
   return sizeInMB <= maxSizeMB;
 }
 
-function sanitizePrompt(prompt: string): string {
-  // Remover conteúdo potencialmente ofensivo ou perigoso
+/**
+ * Valida MIME type usando magic bytes (primeiros bytes do arquivo)
+ * Previne upload de arquivos maliciosos disfarçados como imagens
+ */
+function validateMimeTypeBackend(base64Data: string, mimeType: string): boolean {
+  // Magic bytes para tipos de imagem comuns
+  const IMAGE_SIGNATURES: Record<string, string[]> = {
+    'image/png': ['89504E47'],
+    'image/jpeg': ['FFD8FF', 'FFD8FFE0', 'FFD8FFE1', 'FFD8FFE2'],
+    'image/jpg': ['FFD8FF', 'FFD8FFE0', 'FFD8FFE1', 'FFD8FFE2'],
+    'image/webp': ['52494646'],
+  };
+
+  try {
+    // Decodificar primeiros 4 bytes do base64
+    const binaryString = atob(base64Data.substring(0, 20)); // Pegar mais bytes para garantir
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Converter primeiros 4 bytes para hex
+    const hex = Array.from(bytes.slice(0, 4))
+      .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+      .join('');
+
+    // Verificar se o hex corresponde ao MIME type declarado
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!validTypes.includes(mimeType)) {
+      return false;
+    }
+
+    const signatures = IMAGE_SIGNATURES[mimeType] || [];
+    for (const sig of signatures) {
+      if (hex.startsWith(sig)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Erro ao validar MIME type:", error);
+    return false;
+  }
+}
+
+/**
+ * Sanitiza prompt usando validação de comprimento e moderação de conteúdo
+ */
+function sanitizePrompt(prompt: string, userId?: string): string {
+  const MAX_PROMPT_LENGTH = 2000;
+  
+  // Validar comprimento
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    throw new Error(`Prompt muito longo. Máximo de ${MAX_PROMPT_LENGTH} caracteres.`);
+  }
+
+  // Lista expandida de padrões bloqueados
   const blockedPatterns = [
-    /nude|naked|explicit/gi,
-    /violence|kill|murder/gi,
-    /hate|discrimination/gi,
+    /nude|naked|explicit|nsfw|porn|sex/gi,
+    /genital|breast|penis|vagina/gi,
+    /violence|kill|murder|death|suicide|torture|gore/gi,
+    /weapon|gun|knife|bomb|explosive/gi,
+    /hate|discrimination|racism|sexism|homophobia/gi,
+    /nazi|kkk|fascist/gi,
+    /drug|marijuana|cocaine|heroin/gi,
+    /illegal|crime|theft|robbery/gi,
+    /spam|scam|phishing|malware|virus/gi,
   ];
   
-  let sanitized = prompt;
+  let sanitized = prompt.trim();
+  let wasModified = false;
+
+  // Aplicar filtros
   for (const pattern of blockedPatterns) {
-    sanitized = sanitized.replace(pattern, '[conteúdo filtrado]');
+    if (pattern.test(sanitized)) {
+      sanitized = sanitized.replace(pattern, '[conteúdo filtrado]');
+      wasModified = true;
+    }
+  }
+
+  // Remover caracteres suspeitos
+  const suspiciousChars = /[^\x20-\x7E\u00A0-\uFFFF]/g;
+  const before = sanitized;
+  sanitized = sanitized.replace(suspiciousChars, '');
+  if (sanitized !== before) {
+    wasModified = true;
+  }
+
+  // Logar tentativas de bypass
+  if (wasModified && userId) {
+    console.warn('[Content Moderation] Prompt modificado', {
+      userId,
+      originalLength: prompt.length,
+      sanitizedLength: sanitized.length
+    });
   }
   
   return sanitized.trim();
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+  
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -102,8 +205,8 @@ serve(async (req) => {
     // Isso é seguro porque já validamos que o usuário está autenticado
     const supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
 
-    // Rate limiting
-    const rateLimit = checkRateLimit(user.id);
+    // Rate limiting persistente
+    const rateLimit = await checkRateLimit(supabase, user.id, ENDPOINT_NAME);
     if (!rateLimit.allowed) {
       return new Response(
         JSON.stringify({ 
@@ -139,7 +242,7 @@ serve(async (req) => {
       );
     }
 
-    // Validar tamanho das imagens
+    // Validar tamanho e tipo das imagens
     for (const img of images) {
       if (!validateImageSize(img.data, 10)) {
         return new Response(
@@ -147,10 +250,26 @@ serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      // Validar MIME type usando magic bytes
+      if (!validateMimeTypeBackend(img.data, img.mimeType)) {
+        return new Response(
+          JSON.stringify({ error: "Tipo de arquivo inválido ou corrompido. Use PNG, JPG, JPEG ou WEBP." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
-    // Sanitizar prompt
-    const sanitizedPrompt = sanitizePrompt(prompt);
+    // Sanitizar prompt com validação de comprimento
+    let sanitizedPrompt: string;
+    try {
+      sanitizedPrompt = sanitizePrompt(prompt, user.id);
+    } catch (error: any) {
+      return new Response(
+        JSON.stringify({ error: error.message || "Prompt inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Preparar instrução para Gemini em formato JSON estruturado
     const isMulti = mode === 'studio' && images.length > 1;

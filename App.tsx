@@ -14,7 +14,18 @@ import TemplateSelector from './components/TemplateSelector';
 import EnhanceRestoreUI, { EnhanceRestoreOptions } from './components/EnhanceRestoreUI';
 import AboutPage from './components/AboutPage';
 import Header from './components/Header';
-import Loader from './components/Loader';
+import Loader, { ProgressInfo } from './components/Loader';
+import OfflineBanner from './components/OfflineBanner';
+import ConfirmationModal from './components/ConfirmationModal';
+import SocialProofSection from './components/SocialProofSection';
+import SuccessStories from './components/SuccessStories';
+import PromptHistory from './components/PromptHistory';
+import ImageComparison from './components/ImageComparison';
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import Tooltip from './components/Tooltip';
+import { useKeyboardShortcuts, useKeyboardHelp, type KeyboardShortcut } from './hooks/useKeyboardShortcuts';
+import { savePromptToHistory } from './services/promptHistoryService';
+import { useNetworkStatus } from './utils/networkStatus';
 import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
@@ -45,6 +56,12 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [batchStatus, setBatchStatus] = useState<{ total: number; current: number } | null>(null);
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState<{ current: number; total: number; stage: string } | null>(null);
+  
+  // Gallery Pagination State
+  const [galleryPage, setGalleryPage] = useState(1);
+  const [galleryTotal, setGalleryTotal] = useState(0);
+  const [galleryPageSize] = useState(20);
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
   
   // Credit System State
@@ -90,22 +107,133 @@ const App: React.FC = () => {
   const [unlockedAchievement, setUnlockedAchievement] = useState<{ id: AchievementId; level?: AchievementLevel } | null>(null);
   const [hasNewAchievement, setHasNewAchievement] = useState(false);
 
+  // Network Status
+  const { isOnline, wasOffline } = useNetworkStatus();
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
+
+  // Confirmation Modal State
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: 'danger' | 'warning' | 'info';
+  } | null>(null);
+
+  // Prompt History State
+  const [isPromptHistoryOpen, setIsPromptHistoryOpen] = useState(false);
+
+  // Image Comparison State
+  const [comparisonImages, setComparisonImages] = useState<{
+    original: string;
+    generated: string;
+  } | null>(null);
+
+  // Keyboard Shortcuts
+  const keyboardShortcuts: KeyboardShortcut[] = [
+    {
+      key: 's',
+      ctrl: true,
+      action: () => {
+        // Salvar imagem atual (se houver uma selecionada)
+        if (generatedImages.length > 0) {
+          const link = document.createElement('a');
+          link.href = generatedImages[0].url;
+          link.download = `imagenius-${Date.now()}.png`;
+          link.click();
+        }
+      },
+      description: 'Salvar imagem atual'
+    },
+    {
+      key: 'Escape',
+      action: () => {
+        // Fechar modais
+        setIsStoreOpen(false);
+        setIsAuthOpen(false);
+        setIsTutorialOpen(false);
+        setIsOnboardingOpen(false);
+        setIsUseCasesOpen(false);
+        setIsAboutOpen(false);
+        setIsProfileOpen(false);
+        setIsPromptHistoryOpen(false);
+        setComparisonImages(null);
+        setConfirmationModal(null);
+      },
+      description: 'Fechar modais'
+    },
+    {
+      key: 'k',
+      ctrl: true,
+      action: () => {
+        // Focar busca de templates (se estiver na página de seleção)
+        if (step === 'mode_selection') {
+          const searchInput = document.querySelector('input[placeholder*="Buscar templates"]') as HTMLInputElement;
+          if (searchInput) {
+            searchInput.focus();
+          }
+        }
+      },
+      description: 'Focar busca de templates'
+    },
+    {
+      key: 'n',
+      ctrl: true,
+      action: () => {
+        // Novo projeto (reset)
+        resetApp();
+      },
+      description: 'Iniciar novo projeto'
+    }
+  ];
+
+  const { isVisible: isKeyboardHelpVisible, setIsVisible: setKeyboardHelpVisible, shortcuts: helpShortcuts } = useKeyboardHelp(keyboardShortcuts);
+  useKeyboardShortcuts(keyboardShortcuts);
+
+  // Listener para evento de mostrar ajuda de teclado
+  useEffect(() => {
+    const handleShowHelp = () => {
+      setKeyboardHelpVisible(true);
+    };
+    window.addEventListener('showKeyboardHelp', handleShowHelp);
+    return () => {
+      window.removeEventListener('showKeyboardHelp', handleShowHelp);
+    };
+  }, [setKeyboardHelpVisible]);
+
+  useEffect(() => {
+    if (!isOnline) {
+      setShowOfflineBanner(true);
+    } else if (wasOffline) {
+      // Manter banner por alguns segundos após voltar online
+      setTimeout(() => setShowOfflineBanner(false), 3000);
+    }
+  }, [isOnline, wasOffline]);
+
   // Função para carregar histórico de artes do usuário
-  const loadUserArts = useCallback(async () => {
+  const loadUserArts = useCallback(async (page: number = 1) => {
     try {
-      const userArts = await fetchUserArts(100, 0);
+      const result = await fetchUserArts(100, page, galleryPageSize);
       // Converter CommunityArt para GeneratedImage
-      const convertedImages: GeneratedImage[] = userArts.map(art => ({
+      const convertedImages: GeneratedImage[] = result.arts.map(art => ({
         id: art.id,
         url: art.image_url,
         prompt: art.prompt,
         timestamp: new Date(art.created_at).getTime()
       }));
-      setGeneratedImages(convertedImages);
+      
+      if (page === 1) {
+        setGeneratedImages(convertedImages);
+      } else {
+        setGeneratedImages(prev => [...prev, ...convertedImages]);
+      }
+      
+      setGalleryTotal(result.total);
+      setGalleryPage(page);
     } catch (error) {
       console.error('Erro ao carregar histórico de artes:', error);
     }
-  }, []);
+  }, [galleryPageSize]);
 
   // Carrega usuário, créditos e histórico de artes iniciais
   useEffect(() => {
@@ -342,6 +470,15 @@ const App: React.FC = () => {
     const validThemes = themes.filter(t => t.trim() !== '');
     if (referenceImages.length === 0 || validThemes.length === 0) return;
     
+    // Verificar conexão
+    if (!isOnline) {
+      setToast({
+        message: 'Você está offline. Verifique sua conexão e tente novamente.',
+        type: 'error'
+      });
+      return;
+    }
+    
     // Verificar se o usuário está logado
     if (!currentUser) {
       setToast({
@@ -353,12 +490,22 @@ const App: React.FC = () => {
     }
     
     setIsProcessing(true);
+    setLoadingProgress({ current: 1, total: 3, stage: 'Analisando imagens de referência' });
     setLoadingMsg('O Gênio está analisando suas referências...');
     
     try {
+      // Simular progresso durante análise
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setLoadingProgress({ current: 2, total: 3, stage: 'Gerando prompts especializados' });
+      
       const result = await suggestPrompts(referenceImages, validThemes, selectedTemplate || undefined);
+      
+      setLoadingProgress({ current: 3, total: 3, stage: 'Finalizando' });
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       setSuggestions(result.map((text, idx) => ({ id: idx, text })));
       setStep('prompts');
+      setLoadingProgress(null);
     } catch (error: any) {
       console.error(error);
       setToast({
@@ -372,6 +519,15 @@ const App: React.FC = () => {
 
   const handleEnhanceRestoreGenerate = async (options: EnhanceRestoreOptions) => {
     if (!referenceImages[0]) return;
+
+    // Verificar conexão
+    if (!isOnline) {
+      setToast({
+        message: 'Você está offline. Verifique sua conexão e tente novamente.',
+        type: 'error'
+      });
+      return;
+    }
 
     // Verificar se o usuário está logado
     if (!currentUser) {
@@ -444,6 +600,15 @@ const App: React.FC = () => {
   const handleGenerateBatch = async (selectedPrompts: string[]) => {
     if (referenceImages.length === 0 || selectedPrompts.length === 0) return;
 
+    // Verificar conexão
+    if (!isOnline) {
+      setToast({
+        message: 'Você está offline. Verifique sua conexão e tente novamente.',
+        type: 'error'
+      });
+      return;
+    }
+
     // Credit Check and Deduction (Logic moved to service)
     const canProceed = credits >= selectedPrompts.length;
     if (!canProceed) {
@@ -474,11 +639,17 @@ const App: React.FC = () => {
               }
             }
 
+            // Salvar URL da imagem de referência se disponível
+            const referenceUrl = referenceImages.length > 0 
+              ? `data:${referenceImages[0].mimeType};base64,${referenceImages[0].data}`
+              : undefined;
+
             const newImg: GeneratedImage = {
               id: artId || (Date.now() + i).toString(),
               url: imageUrl,
               prompt: selectedPrompts[i],
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              referenceImageUrl: referenceUrl
             };
             setGeneratedImages(prev => [newImg, ...prev]);
             setCredits(prev => prev - 1);
@@ -570,8 +741,9 @@ const App: React.FC = () => {
       setThemes(['']);
       setSuggestions([]);
       setGeneratedImages([]);
-      setBatchStatus(null);
-      setIsProcessing(false);
+        setBatchStatus(null);
+        setLoadingProgress(null);
+        setIsProcessing(false);
       setLoadingMsg('');
       setToast(null);
       
@@ -622,9 +794,10 @@ const App: React.FC = () => {
         hasImages={generatedImages.length > 0} 
         goToGallery={() => {
           setStep('gallery');
-          // Recarregar histórico ao navegar para a galeria
+          // Recarregar histórico ao navegar para a galeria (resetar para página 1)
           if (currentUser) {
-            loadUserArts();
+            setGalleryPage(1);
+            loadUserArts(1);
           }
         }} 
         credits={credits}
@@ -718,6 +891,17 @@ const App: React.FC = () => {
           />
         )}
 
+        {confirmationModal && (
+          <ConfirmationModal
+            isOpen={confirmationModal.isOpen}
+            title={confirmationModal.title}
+            message={confirmationModal.message}
+            onConfirm={confirmationModal.onConfirm}
+            onCancel={() => setConfirmationModal(null)}
+            variant={confirmationModal.variant || 'warning'}
+          />
+        )}
+
         {isProfileOpen && currentUser && (
           <UserProfileModal
             isOpen={isProfileOpen}
@@ -740,15 +924,15 @@ const App: React.FC = () => {
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (
-          <div className="bg-white dark:bg-slate-800 rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-8 md:p-14 transition-all">
+          <div className="bg-white dark:bg-slate-800 rounded-[2rem] md:rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-4 sm:p-6 md:p-8 lg:p-14 transition-all">
             
             {step === 'mode_selection' && (
               <div className="space-y-16 animate-in fade-in duration-700">
                 <div className="text-center space-y-6">
-                  <h2 className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tighter">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tighter px-4">
                     Crie imagens que mantêm o mesmo estilo. <span className="text-genius-gradient">Sempre.</span>
                   </h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-xl font-bold max-w-2xl mx-auto">
+                  <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg md:text-xl font-bold max-w-2xl mx-auto px-4">
                     A única IA que garante 100% de coerência visual entre todas as suas criações
                   </p>
                   <div className="flex items-center justify-center gap-4 pt-4">
@@ -770,9 +954,9 @@ const App: React.FC = () => {
                   onSelectTemplate={handleTemplateSelection}
                 />
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 sm:px-0">
                   {/* Botões de Tutorial e Exemplos */}
-                  <div className="md:col-span-2 flex justify-center gap-4 flex-wrap">
+                  <div className="md:col-span-2 flex justify-center gap-3 sm:gap-4 flex-wrap">
                     <button
                       onClick={() => setIsTutorialOpen(true)}
                       className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border-2 border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
@@ -798,16 +982,21 @@ const App: React.FC = () => {
                       </svg>
                     </button>
                   </div>
+                  <Tooltip 
+                    content="Use esta opção quando quiser criar múltiplas imagens mantendo exatamente o mesmo estilo visual. Ideal para manter identidade de marca, criar variações de um produto ou gerar conteúdo consistente."
+                    position="top"
+                  >
                   <button 
                     onClick={() => handleModeSelection('single')}
-                    className="group relative p-10 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 border-2 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20"
+                    className="group relative p-6 sm:p-8 md:p-10 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 border-2 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20"
                   >
-                    <div className="w-16 h-16 bg-white dark:bg-slate-700 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
-                      <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white dark:bg-slate-700 rounded-2xl sm:rounded-3xl shadow-lg flex items-center justify-center mb-4 sm:mb-6 md:mb-8 group-hover:scale-110 transition-transform duration-500">
+                      <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Preservar DNA</h3>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Fidelidade absoluta ao estilo. O Gênio captura a alma de uma única imagem para criar variações que mantêm a mesma identidade visual.</p>
-                  </button>
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mb-2 sm:mb-3">Preservar DNA</h3>
+                    <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 font-medium leading-relaxed">Fidelidade absoluta ao estilo. O Gênio captura a alma de uma única imagem para criar variações que mantêm a mesma identidade visual.</p>
+                    </button>
+                  </Tooltip>
 
                   <button 
                     onClick={() => handleModeSelection('studio')}
@@ -823,6 +1012,9 @@ const App: React.FC = () => {
 
                 {/* Seção de Comparação */}
                 <ComparisonSection />
+
+                {/* Casos de Sucesso */}
+                <SuccessStories />
 
                 {/* Galeria da Comunidade */}
                 <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
@@ -932,8 +1124,8 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-14">
-                  <div className="md:col-span-4 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-14">
+                  <div className="md:col-span-4 space-y-4 md:space-y-6">
                     <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">Referências Ativas</p>
                     <div className="grid grid-cols-2 gap-3">
                       {referenceImages.map((img, idx) => (
@@ -950,7 +1142,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="md:col-span-8 space-y-8">
+                  <div className="md:col-span-8 space-y-4 md:space-y-8">
                     <div className="space-y-4">
                       {themes.map((theme, idx) => (
                         <div key={idx} className="flex gap-4 group animate-in slide-in-from-right-8 duration-500" style={{ animationDelay: `${idx * 100}ms` }}>

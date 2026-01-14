@@ -410,18 +410,29 @@ export async function saveUserArt(
  */
 export async function fetchUserArts(
   limit: number = 100,
-  offset: number = 0
-): Promise<CommunityArt[]> {
+  page: number = 1,
+  pageSize: number = 20
+): Promise<{ arts: CommunityArt[]; total: number }> {
   try {
     if (!supabase) {
       console.warn('Supabase não configurado. Retornando array vazio.');
-      return [];
+      return { arts: [], total: 0 };
     }
 
     const currentUser = await getCurrentUser();
     if (!currentUser) {
-      return [];
+      return { arts: [], total: 0 };
     }
+
+    // Calcular offset para paginação
+    const offset = (page - 1) * pageSize;
+    const actualLimit = Math.min(pageSize, limit);
+
+    // Buscar total de registros
+    const { count } = await supabase
+      .from('community_arts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id);
 
     // Buscar todas as artes do usuário (independente de is_shared)
     const { data, error } = await supabase
@@ -437,15 +448,15 @@ export async function fetchUserArts(
       `)
       .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + actualLimit - 1);
 
     if (error) {
       console.error('Erro ao buscar artes do usuário:', error);
-      return [];
+      return { arts: [], total: 0 };
     }
 
     if (!data || data.length === 0) {
-      return [];
+      return { arts: [], total: count || 0 };
     }
 
     // Mapear dados para o formato esperado
@@ -459,10 +470,10 @@ export async function fetchUserArts(
       updated_at: art.updated_at
     }));
 
-    return userArts;
+    return { arts: userArts, total: count || 0 };
   } catch (error) {
     console.error('Erro ao buscar artes do usuário:', error);
-    return [];
+    return { arts: [], total: 0 };
   }
 }
 

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { PromptSuggestion } from '../types';
+import Tooltip from './Tooltip';
 
 interface PromptEditorProps {
   suggestions: PromptSuggestion[];
@@ -54,7 +55,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {suggestions.map((s) => {
           const isSelected = selectedIds.includes(s.id);
           return (
