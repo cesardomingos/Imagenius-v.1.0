@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan } from './types';
+import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan, TemplateId, getTemplateById } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
 import { fetchUserCredits, deductCredits, checkAndUpdateTransactionStatus, getCurrentUser, signOut, checkPrivacyConsent } from './services/supabaseService';
 import { startStripeCheckout } from './services/stripeService';
@@ -10,6 +10,9 @@ import PromptEditor from './components/PromptEditor';
 import Gallery from './components/Gallery';
 import CommunityGallery from './components/CommunityGallery';
 import ComparisonSection from './components/ComparisonSection';
+import TemplateSelector from './components/TemplateSelector';
+import EnhanceRestoreUI, { EnhanceRestoreOptions } from './components/EnhanceRestoreUI';
+import AboutPage from './components/AboutPage';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import PricingModal from './components/PricingModal';
@@ -35,6 +38,7 @@ import {
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('mode_selection');
   const [projectMode, setProjectMode] = useState<ProjectMode>('single');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId | null>(null);
   const [referenceImages, setReferenceImages] = useState<ImageData[]>([]);
   const [themes, setThemes] = useState<string[]>(['']);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -63,7 +67,10 @@ const App: React.FC = () => {
 
   // User Profile State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
+  
+  // About Page State
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  
   // Consent Modal State
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [isPolicyUpdate, setIsPolicyUpdate] = useState(false);
@@ -260,8 +267,26 @@ const App: React.FC = () => {
 
   const handleModeSelection = (mode: ProjectMode) => {
     setProjectMode(mode);
+    setSelectedTemplate(null);
     setReferenceImages([]);
     setStep('upload');
+  };
+
+  const handleTemplateSelection = (templateId: TemplateId) => {
+    const template = getTemplateById(templateId);
+    if (!template) return;
+
+    setSelectedTemplate(templateId);
+    setProjectMode(template.mode);
+    
+    // Templates Enhance e Restore têm UI especial
+    if (template.requiresSpecialUI) {
+      setStep('upload');
+      setThemes(template.defaultThemes || ['']);
+    } else {
+      setStep('upload');
+      setThemes(template.defaultThemes || ['']);
+    }
   };
 
   const handleImageUpload = async (base64: string, mimeType: string) => {
@@ -331,13 +356,84 @@ const App: React.FC = () => {
     setLoadingMsg('O Gênio está analisando suas referências...');
     
     try {
-      const result = await suggestPrompts(referenceImages, validThemes);
+      const result = await suggestPrompts(referenceImages, validThemes, selectedTemplate || undefined);
       setSuggestions(result.map((text, idx) => ({ id: idx, text })));
       setStep('prompts');
     } catch (error: any) {
       console.error(error);
       setToast({
         message: error.message || "Houve um erro no processo criativo. Tente novamente.",
+        type: 'error'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleEnhanceRestoreGenerate = async (options: EnhanceRestoreOptions) => {
+    if (!referenceImages[0]) return;
+
+    // Verificar se o usuário está logado
+    if (!currentUser) {
+      setToast({
+        message: 'Você precisa estar logado para continuar. Faça login ou crie uma conta.',
+        type: 'warning'
+      });
+      setIsAuthOpen(true);
+      return;
+    }
+
+    // Construir prompt baseado nas opções
+    const intensityText = {
+      low: 'sutilmente',
+      medium: 'moderadamente',
+      high: 'intensamente'
+    }[options.intensity];
+
+    const enhancements = options.specificEnhancements?.join(', ') || 
+      (selectedTemplate === 'enhance' ? 'melhorar qualidade geral' : 'restaurar imagem');
+
+    const prompt = selectedTemplate === 'enhance'
+      ? `Melhore ${intensityText} a imagem: ${enhancements}. ${options.preserveOriginal ? 'Preserve o estilo original.' : ''}`
+      : `Restaure ${intensityText} a imagem: ${enhancements}. ${options.preserveOriginal ? 'Preserve o estilo original.' : ''}`;
+
+    setIsProcessing(true);
+    setLoadingMsg(selectedTemplate === 'enhance' ? 'Melhorando imagem...' : 'Restaurando imagem...');
+
+    try {
+      const imageUrl = await generateCoherentImage([referenceImages[0]], prompt, projectMode);
+      if (imageUrl) {
+        const success = await deductCredits(1);
+        if (success) {
+          let artId: string | undefined;
+          if (currentUser) {
+            const saveResult = await saveUserArt(imageUrl, prompt);
+            if (saveResult.success && saveResult.artId) {
+              artId = saveResult.artId;
+            }
+          }
+
+          const newImg: GeneratedImage = {
+            id: artId || Date.now().toString(),
+            url: imageUrl,
+            prompt,
+            timestamp: Date.now()
+          };
+          setGeneratedImages(prev => [newImg, ...prev]);
+          setCredits(prev => prev - 1);
+          setStep('gallery');
+          
+          setToast({
+            message: selectedTemplate === 'enhance' 
+              ? 'Imagem melhorada com sucesso!' 
+              : 'Imagem restaurada com sucesso!',
+            type: 'success'
+          });
+        }
+      }
+    } catch (error: any) {
+      setToast({
+        message: error.message || 'Erro ao processar imagem. Tente novamente.',
         type: 'error'
       });
     } finally {
@@ -465,14 +561,47 @@ const App: React.FC = () => {
   };
 
   const resetApp = () => {
-    setPrefilledTheme(null);
-    // "Novo +" deve iniciar direto o fluxo de Estética Coerente (modo single)
-    setProjectMode('single');
-    setReferenceImages([]);
-    setThemes(['']);
-    setSuggestions([]);
-    setStep('upload');
-    setBatchStatus(null);
+    try {
+      // Sempre garantir que volta para a home, mesmo em caso de erro
+      // Limpar todos os estados que possam estar travando
+      setPrefilledTheme(null);
+      setProjectMode('single');
+      setReferenceImages([]);
+      setThemes(['']);
+      setSuggestions([]);
+      setGeneratedImages([]);
+      setBatchStatus(null);
+      setIsProcessing(false);
+      setLoadingMsg('');
+      setToast(null);
+      
+      // Fechar todos os modais
+      setIsStoreOpen(false);
+      setIsAuthOpen(false);
+      setIsTutorialOpen(false);
+      setIsOnboardingOpen(false);
+      setIsUseCasesOpen(false);
+      setIsProfileOpen(false);
+      setShowConsentModal(false);
+      setShowPrivacyPolicy(false);
+      setShowTermsOfService(false);
+      
+      // Sempre voltar para a home (step upload)
+      setStep('upload');
+    } catch (error) {
+      // Em caso de qualquer erro, ainda assim garantir que volta para a home
+      console.error('Erro ao resetar aplicação:', error);
+      try {
+        setStep('upload');
+        setGeneratedImages([]);
+        setIsProcessing(false);
+        setToast(null);
+      } catch (fallbackError) {
+        // Último recurso: recarregar a página para garantir reset completo
+        console.error('Erro crítico ao resetar, recarregando página:', fallbackError);
+        window.location.href = '/';
+      }
+    }
   };
 
   // If we're on the reset password page, show only that component
@@ -508,6 +637,7 @@ const App: React.FC = () => {
           setHasNewAchievement(false);
         }}
         hasNewAchievement={hasNewAchievement}
+        onOpenAbout={() => setIsAboutOpen(true)}
       />
       
       <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
@@ -582,6 +712,12 @@ const App: React.FC = () => {
           />
         )}
 
+        {isAboutOpen && (
+          <AboutPage
+            onClose={() => setIsAboutOpen(false)}
+          />
+        )}
+
         {isProfileOpen && currentUser && (
           <UserProfileModal
             isOpen={isProfileOpen}
@@ -628,6 +764,11 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Template Selector */}
+                <TemplateSelector 
+                  onSelectTemplate={handleTemplateSelection}
+                />
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                   {/* Botões de Tutorial e Exemplos */}
@@ -690,15 +831,40 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {step === 'upload' && (
+            {step === 'upload' && selectedTemplate && (selectedTemplate === 'enhance' || selectedTemplate === 'restore') ? (
+              <EnhanceRestoreUI
+                templateId={selectedTemplate}
+                referenceImage={referenceImages[0] || null}
+                onImageSelect={(img) => {
+                  if (img) {
+                    setReferenceImages([img]);
+                  } else {
+                    setReferenceImages([]);
+                  }
+                }}
+                onGenerate={handleEnhanceRestoreGenerate}
+                onBack={() => {
+                  setSelectedTemplate(null);
+                  setReferenceImages([]);
+                  setStep('mode_selection');
+                }}
+              />
+            ) : step === 'upload' && (
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 <div className="flex items-center gap-6">
-                  <button onClick={() => setStep('mode_selection')} className="w-14 h-14 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400">
+                  <button onClick={() => {
+                    setSelectedTemplate(null);
+                    setStep('mode_selection');
+                  }} className="w-14 h-14 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7"/></svg>
                   </button>
                   <div className="space-y-1">
-                    <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Defina sua Base</h2>
-                    <p className="text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em]">Enviando Referência Visual</p>
+                    <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {selectedTemplate ? getTemplateById(selectedTemplate)?.name : 'Defina sua Base'}
+                    </h2>
+                    <p className="text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em]">
+                      {selectedTemplate ? getTemplateById(selectedTemplate)?.description : 'Enviando Referência Visual'}
+                    </p>
                   </div>
                 </div>
 

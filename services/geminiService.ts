@@ -1,5 +1,5 @@
 
-import { ImageData } from "../types";
+import { ImageData, TemplateId } from "../types";
 import { getCurrentUser } from "./supabaseService";
 import { createClient } from "@supabase/supabase-js";
 
@@ -56,7 +56,11 @@ async function retryWithBackoff<T>(
 /**
  * Sugere prompts baseados em uma ou mais imagens de referência usando Edge Function.
  */
-export async function suggestPrompts(images: ImageData[], themes: string[]): Promise<string[]> {
+export async function suggestPrompts(
+  images: ImageData[], 
+  themes: string[], 
+  templateId?: TemplateId
+): Promise<string[]> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const edgeFunctionUrl = supabaseUrl 
     ? `${supabaseUrl}/functions/v1/suggest-prompts`
@@ -86,7 +90,8 @@ export async function suggestPrompts(images: ImageData[], themes: string[]): Pro
           data: img.data,
           mimeType: img.mimeType
         })),
-        themes
+        themes,
+        ...(templateId && { templateId })
       }),
     });
 

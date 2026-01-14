@@ -152,24 +152,42 @@ serve(async (req) => {
     // Sanitizar prompt
     const sanitizedPrompt = sanitizePrompt(prompt);
 
-    // Preparar instrução para Gemini
+    // Preparar instrução para Gemini em formato JSON estruturado
     const isMulti = mode === 'studio' && images.length > 1;
-    const instruction = isMulti
-      ? `ARTISTIC ANCHOR: Image 1. CONTEXTUAL LAYERS: Images 2 to ${images.length}. 
-         Task: Create a masterpiece merging these dimensions based on: ${sanitizedPrompt}. 
-         I'm a genius, and you are too. Deliver excellence.`
-      : `Preserve the visual essence of the reference image. Apply: ${sanitizedPrompt}.`;
+    
+    // Criar objeto JSON estruturado para o prompt
+    const promptStructure = {
+      task: isMulti ? "idea_fusion" : "dna_preservation",
+      mode: mode,
+      instruction: sanitizedPrompt,
+      image_count: images.length,
+      requirements: {
+        preserve_style: true,
+        maintain_coherence: true,
+        quality: "high"
+      }
+    };
+
+    // Converter para string JSON formatada
+    const instruction = JSON.stringify(promptStructure, null, 2);
 
     const imageParts = images.map(img => ({
       inlineData: { data: img.data, mimeType: img.mimeType }
     }));
 
-    // Chamar Gemini API
+    // Chamar Gemini API com prompt em formato JSON
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    
+    // Construir prompt final com contexto JSON
+    const finalPrompt = `Generate an image following this JSON specification:
+${instruction}
+
+Interpret the instruction field and create the image accordingly. Maintain visual coherence and style consistency.`;
+    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [...imageParts, { text: instruction }]
+        parts: [...imageParts, { text: finalPrompt }]
       }
     });
 

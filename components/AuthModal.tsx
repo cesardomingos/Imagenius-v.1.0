@@ -120,13 +120,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6">
       <div 
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
         onClick={handleClose}
       />
       
-      <div className="relative bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 my-auto">
+      <div className="relative bg-white dark:bg-slate-800 w-full max-w-md max-h-[90vh] rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col my-auto">
         {/* Header */}
         <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6 sm:p-8">
           <button
@@ -151,7 +151,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
         </div>
 
         {/* Content */}
-        <div className="p-6 sm:p-8">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>

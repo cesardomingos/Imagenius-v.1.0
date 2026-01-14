@@ -16,9 +16,10 @@ interface HeaderProps {
   onLogout: () => void;
   onOpenProfile: () => void;
   hasNewAchievement?: boolean;
+  onOpenAbout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout, onOpenProfile, hasNewAchievement = false }) => {
+const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credits, onOpenStore, currentUser, onOpenAuth, onLogout, onOpenProfile, hasNewAchievement = false, onOpenAbout }) => {
   const { theme, toggleTheme } = useTheme();
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
 
@@ -55,10 +56,28 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
       .slice(0, 3);
   };
   
+  const handleLogoClick = () => {
+    try {
+      // Tentar executar o reset normalmente
+      onReset();
+    } catch (error) {
+      // Se houver qualquer erro, garantir que volta para a home
+      console.error('Erro ao resetar via logo:', error);
+      try {
+        // Tentar navegar para a home via window.location
+        window.location.href = '/';
+      } catch (fallbackError) {
+        // Último recurso: recarregar a página
+        console.error('Erro crítico ao navegar para home:', fallbackError);
+        window.location.reload();
+      }
+    }
+  };
+
   return (
     <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 sticky top-0 z-40">
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-5 cursor-pointer group" onClick={onReset}>
+        <div className="flex items-center gap-5 cursor-pointer group" onClick={handleLogoClick}>
           <div className="relative w-12 h-12 flex items-center justify-center">
             <div className="absolute w-3 h-3 bg-genius-gradient rounded-full shadow-lg z-20 shadow-indigo-500/50"></div>
             <div className="absolute inset-0 border-[2.5px] border-indigo-600/20 rounded-[40%] animate-orbit-slow"></div>
@@ -82,6 +101,16 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
                 <span className="text-indigo-600 dark:text-indigo-400">I'm</span> a genius, and <span className="text-indigo-600 dark:text-indigo-400">you</span> are too.
              </p>
           </div>
+
+          {/* Sobre Button */}
+          {onOpenAbout && (
+            <button
+              onClick={onOpenAbout}
+              className="hidden md:block text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold text-xs uppercase tracking-widest transition-colors"
+            >
+              Sobre
+            </button>
+          )}
 
           {/* Theme Toggle */}
           <button

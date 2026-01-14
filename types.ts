@@ -11,7 +11,7 @@ export interface PromptSuggestion {
   text: string;
 }
 
-export type AppStep = 'mode_selection' | 'upload' | 'themes' | 'prompts' | 'gallery';
+export type AppStep = 'mode_selection' | 'template_selection' | 'upload' | 'themes' | 'prompts' | 'gallery';
 
 export type ProjectMode = 'single' | 'studio';
 
@@ -51,3 +51,7 @@ export interface Transaction {
 // Re-export achievements types
 export type { AchievementId, Achievement, UserAchievement } from './types/achievements';
 export { ACHIEVEMENTS } from './types/achievements';
+
+// Re-export template types
+export type { TemplateId, Template } from './config/templates';
+export { TEMPLATES, getTemplateById, getTemplatesByCategory, getAllTemplates } from './config/templates';
