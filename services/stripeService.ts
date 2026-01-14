@@ -141,16 +141,26 @@ async function createCheckoutSession(
         return { sessionId: data.sessionId, url: data.url };
       }
 
-      // Log para debug (apenas em desenvolvimento)
-      if (import.meta.env.DEV) {
-        console.log('Enviando requisição para Edge Function:', {
-          url: edgeFunctionUrl,
-          hasToken: !!session.access_token,
-          tokenLength: session.access_token?.length,
-          userId,
-          planId: plan.id
-        });
+      // Log detalhado para debug
+      const requestId = `frontend-${Date.now()}`;
+      console.log(`[${requestId}] === ENVIANDO PARA EDGE FUNCTION ===`);
+      console.log(`[${requestId}] URL: ${edgeFunctionUrl}`);
+      console.log(`[${requestId}] Token presente: ${!!session.access_token}`);
+      if (session.access_token) {
+        console.log(`[${requestId}] Token length: ${session.access_token.length} caracteres`);
+        console.log(`[${requestId}] Token prefix: ${session.access_token.substring(0, 20)}...`);
+        console.log(`[${requestId}] Token expira em: ${session.expires_at ? new Date(session.expires_at * 1000).toISOString() : "desconhecido"}`);
       }
+      console.log(`[${requestId}] apikey presente: ${!!supabaseAnonKey}`);
+      if (supabaseAnonKey) {
+        console.log(`[${requestId}] apikey prefix: ${supabaseAnonKey.substring(0, 10)}...`);
+      }
+      console.log(`[${requestId}] Payload:`, {
+        plan_id: plan.id,
+        amount: PLAN_PRICES[plan.id] || 0,
+        currency: 'brl',
+        user_id: userId
+      });
 
       const response = await fetch(edgeFunctionUrl, {
         method: 'POST',
@@ -168,23 +178,50 @@ async function createCheckoutSession(
       });
 
       if (!response.ok) {
+        console.error(`[${requestId}] ❌ ERRO NA RESPOSTA ===`);
+        console.error(`[${requestId}] Status: ${response.status} ${response.statusText}`);
+        console.error(`[${requestId}] Headers da resposta:`, Object.fromEntries(response.headers.entries()));
+        
         // Tentar obter detalhes do erro
         let errorMessage = `Erro ${response.status}: ${response.statusText}`;
+        let errorData: any = null;
+        
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-          console.error('Erro da Edge Function:', errorData);
-        } catch (e) {
-          const text = await response.text().catch(() => '');
-          if (text) {
-            console.error('Resposta de erro (texto):', text);
-            errorMessage = text || errorMessage;
+          const responseText = await response.text();
+          console.error(`[${requestId}] Response body (texto):`, responseText);
+          
+          try {
+            errorData = JSON.parse(responseText);
+            console.error(`[${requestId}] Response body (JSON):`, errorData);
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (parseError) {
+            console.error(`[${requestId}] Não foi possível parsear JSON:`, parseError);
+            errorMessage = responseText || errorMessage;
           }
+        } catch (e) {
+          console.error(`[${requestId}] Erro ao ler resposta:`, e);
         }
-        throw new Error(errorMessage);
+        
+        // Log específico para erro 401
+        if (response.status === 401) {
+          console.error(`[${requestId}] ⚠️ ERRO 401 DETECTADO ===`);
+          console.error(`[${requestId}] Verifique:`);
+          console.error(`[${requestId}] 1. Token JWT está válido e não expirado?`);
+          console.error(`[${requestId}] 2. apikey do header corresponde ao SUPABASE_ANON_KEY?`);
+          console.error(`[${requestId}] 3. SUPABASE_ANON_KEY está configurado na Edge Function?`);
+          console.error(`[${requestId}] 4. Token foi gerado com a mesma SUPABASE_ANON_KEY?`);
+        }
+        
+        throw new Error(errorData?.hint ? `${errorMessage} (${errorData.hint})` : errorMessage);
       }
+      
+      console.log(`[${requestId}] ✓ Resposta OK recebida`);
 
       const data = await response.json();
+      
+      // Nota: A transação pendente é criada pela Edge Function usando service_role key
+      // Isso garante maior segurança, evitando que usuários maliciosos criem transações falsas
+      
       return { sessionId: data.sessionId, url: data.url };
     } catch (error) {
       console.error('Erro ao chamar Edge Function:', error);

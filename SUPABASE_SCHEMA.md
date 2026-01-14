@@ -64,8 +64,21 @@ ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Usuários podem ver suas transações" ON public.transactions
   FOR SELECT USING (auth.uid() = user_id);
 
--- Nota: INSERT e UPDATE são feitos apenas via Edge Functions usando service_role key (que bypassa RLS)
--- Isso garante que apenas o backend pode criar/atualizar transações, aumentando a segurança
+-- Política para permitir que usuários criem suas próprias transações pendentes
+-- IMPORTANTE: Apenas transações com status 'pending' podem ser criadas pelo usuário
+-- O webhook do Stripe (usando service_role) atualiza o status para 'completed'
+CREATE POLICY "Usuários podem criar transações pendentes" ON public.transactions
+  FOR INSERT 
+  WITH CHECK (
+    auth.uid() = user_id 
+    AND status = 'pending'
+    AND stripe_session_id IS NOT NULL
+  );
+
+-- Nota sobre UPDATE:
+-- Usuários NÃO podem atualizar transações (apenas o webhook pode)
+-- Isso garante que apenas transações reais do Stripe sejam marcadas como 'completed'
+-- O webhook usa service_role key para bypass RLS e atualizar o status
 ```
 
 ## 3. Configuração do Cliente Supabase no Frontend
@@ -140,9 +153,9 @@ const PLAN_CREDITS: Record<string, number> = {
 };
 
 const PLAN_PRICES: Record<string, number> = {
-  'starter': 1990,   // R$ 19,90 em centavos
-  'genius': 6990,   // R$ 69,90 em centavos
-  'master': 14990,  // R$ 149,90 em centavos
+  'starter': 990,   // R$ 9,90 em centavos
+  'genius': 2990,   // R$ 29,90 em centavos
+  'master': 6990,  // R$ 69,90 em centavos
 };
 
 // Headers CORS
@@ -157,24 +170,47 @@ const corsHeaders = {
 serve(async (req) => {
   // Tratar requisição OPTIONS (preflight)
   if (req.method === "OPTIONS") {
+    console.log("[CORS] Preflight request recebido");
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Log inicial da requisição
+  const requestId = crypto.randomUUID();
+  console.log(`[${requestId}] === NOVA REQUISIÇÃO ===`);
+  console.log(`[${requestId}] Método: ${req.method}`);
+  console.log(`[${requestId}] URL: ${req.url}`);
+  
   try {
     // Verificar autenticação
     const authHeader = req.headers.get("Authorization");
     const apikey = req.headers.get("apikey");
+    const contentType = req.headers.get("Content-Type");
     
-    // Log para debug (remover em produção se necessário)
-    console.log("Headers recebidos:", {
-      hasAuthHeader: !!authHeader,
-      hasApikey: !!apikey,
-      authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + "..." : null,
-      method: req.method
-    });
+    // Log detalhado dos headers
+    console.log(`[${requestId}] === HEADERS ===`);
+    console.log(`[${requestId}] Authorization: ${authHeader ? "presente" : "ausente"}`);
+    if (authHeader) {
+      const tokenPrefix = authHeader.startsWith("Bearer ") ? authHeader.substring(7, 20) : authHeader.substring(0, 13);
+      console.log(`[${requestId}] Token prefix: ${tokenPrefix}...`);
+      console.log(`[${requestId}] Token length: ${authHeader.length} caracteres`);
+    }
+    console.log(`[${requestId}] apikey header: ${apikey ? "presente" : "ausente"}`);
+    if (apikey) {
+      console.log(`[${requestId}] apikey prefix: ${apikey.substring(0, 10)}...`);
+      console.log(`[${requestId}] apikey length: ${apikey.length} caracteres`);
+    }
+    console.log(`[${requestId}] Content-Type: ${contentType || "não fornecido"}`);
+    
+    // Log de todas as variáveis de ambiente (sem expor valores completos)
+    console.log(`[${requestId}] === VARIÁVEIS DE AMBIENTE ===`);
+    console.log(`[${requestId}] SUPABASE_URL: ${Deno.env.get("SUPABASE_URL") ? "configurado" : "NÃO CONFIGURADO"}`);
+    console.log(`[${requestId}] SUPABASE_ANON_KEY: ${Deno.env.get("SUPABASE_ANON_KEY") ? "configurado (" + Deno.env.get("SUPABASE_ANON_KEY")?.substring(0, 10) + "...)" : "NÃO CONFIGURADO"}`);
+    console.log(`[${requestId}] STRIPE_SECRET_KEY: ${Deno.env.get("STRIPE_SECRET_KEY") ? "configurado" : "NÃO CONFIGURADO"}`);
+    console.log(`[${requestId}] SITE_URL: ${Deno.env.get("SITE_URL") || "não configurado"}`);
     
     // Edge Functions do Supabase podem usar apikey ou Authorization
     if (!authHeader && !apikey) {
+      console.error(`[${requestId}] ❌ ERRO: Nenhum token de autenticação fornecido`);
       return new Response(
         JSON.stringify({ error: "Não autorizado - Token de autenticação não fornecido" }),
         { 
@@ -192,8 +228,12 @@ serve(async (req) => {
     let user = null;
     
     if (authHeader) {
+      console.log(`[${requestId}] === VALIDAÇÃO DE TOKEN ===`);
+      
       // Verificar se o header tem o formato correto
       if (!authHeader.startsWith("Bearer ")) {
+        console.error(`[${requestId}] ❌ ERRO: Formato de Authorization header inválido`);
+        console.error(`[${requestId}] Header recebido: ${authHeader.substring(0, 50)}...`);
         return new Response(
           JSON.stringify({ error: "Formato de Authorization header inválido. Deve ser: Bearer <token>" }),
           { 
@@ -210,8 +250,12 @@ serve(async (req) => {
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
       
+      console.log(`[${requestId}] Verificando configuração do Supabase...`);
+      console.log(`[${requestId}] SUPABASE_URL: ${supabaseUrl ? "✓ configurado" : "✗ NÃO CONFIGURADO"}`);
+      console.log(`[${requestId}] SUPABASE_ANON_KEY: ${supabaseAnonKey ? "✓ configurado (" + supabaseAnonKey.substring(0, 10) + "...)" : "✗ NÃO CONFIGURADO"}`);
+      
       if (!supabaseUrl || !supabaseAnonKey) {
-        console.error("SUPABASE_URL ou SUPABASE_ANON_KEY não configurados");
+        console.error(`[${requestId}] ❌ ERRO: Configuração do Supabase incompleta`);
         return new Response(
           JSON.stringify({ error: "Configuração do Supabase incompleta" }),
           { 
@@ -223,17 +267,26 @@ serve(async (req) => {
           }
         );
       }
+      
+      // Comparar apikey do header com SUPABASE_ANON_KEY
+      if (apikey) {
+        const apikeyMatch = apikey === supabaseAnonKey;
+        console.log(`[${requestId}] Comparação apikey: ${apikeyMatch ? "✓ CORRESPONDE" : "✗ NÃO CORRESPONDE"}`);
+        if (!apikeyMatch) {
+          console.warn(`[${requestId}] ⚠️ ATENÇÃO: apikey do header não corresponde ao SUPABASE_ANON_KEY`);
+          console.log(`[${requestId}] Header apikey prefix: ${apikey.substring(0, 10)}...`);
+          console.log(`[${requestId}] Env apikey prefix: ${supabaseAnonKey.substring(0, 10)}...`);
+        }
+      }
 
       // Criar cliente Supabase com o token
       // IMPORTANTE: Usar o apikey do header se fornecido, senão usar da env var
       // O apikey do header deve ser o mesmo que VITE_SUPABASE_ANON_KEY do frontend
       const finalApikey = apikey || supabaseAnonKey;
       
-      console.log("Criando cliente Supabase:", {
-        supabaseUrl: supabaseUrl ? "configurado" : "não configurado",
-        hasApikey: !!finalApikey,
-        apikeySource: apikey ? "header" : "env var"
-      });
+      console.log(`[${requestId}] Criando cliente Supabase...`);
+      console.log(`[${requestId}] apikey source: ${apikey ? "header" : "env var"}`);
+      console.log(`[${requestId}] finalApikey prefix: ${finalApikey.substring(0, 10)}...`);
       
       const supabaseAuth = createClient(
         supabaseUrl,
@@ -248,27 +301,38 @@ serve(async (req) => {
         }
       );
 
+      console.log(`[${requestId}] Cliente Supabase criado. Validando token...`);
+      
       // Validar o token e obter o usuário
       // IMPORTANTE: O getUser() valida o JWT token automaticamente
+      const startTime = Date.now();
       const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser();
+      const validationTime = Date.now() - startTime;
+      
+      console.log(`[${requestId}] Validação concluída em ${validationTime}ms`);
       
       if (authError) {
-        console.error("Erro de autenticação:", {
-          message: authError.message,
-          status: authError.status,
-          name: authError.name,
-          // Log adicional para debug
-          tokenPrefix: authHeader ? authHeader.substring(0, 30) + "..." : "não fornecido",
-          apikeyMatch: apikey === supabaseAnonKey ? "sim" : "não (pode ser o problema)"
-        });
+        console.error(`[${requestId}] ❌ ERRO DE AUTENTICAÇÃO ===`);
+        console.error(`[${requestId}] Mensagem: ${authError.message}`);
+        console.error(`[${requestId}] Status: ${authError.status || "não fornecido"}`);
+        console.error(`[${requestId}] Nome: ${authError.name || "não fornecido"}`);
+        console.error(`[${requestId}] Token prefix: ${authHeader.substring(7, 30)}...`);
+        console.error(`[${requestId}] apikey match: ${apikey === supabaseAnonKey ? "✓ SIM" : "✗ NÃO"}`);
+        
+        if (apikey && apikey !== supabaseAnonKey) {
+          console.error(`[${requestId}] ⚠️ PROBLEMA IDENTIFICADO: apikey do header não corresponde!`);
+          console.error(`[${requestId}] Header apikey: ${apikey.substring(0, 20)}...`);
+          console.error(`[${requestId}] Env apikey: ${supabaseAnonKey.substring(0, 20)}...`);
+        }
         
         // Se o erro for "Invalid JWT", pode ser que o apikey não corresponde
-        if (authError.message.includes("JWT") || authError.message.includes("token")) {
+        if (authError.message.includes("JWT") || authError.message.includes("token") || authError.message.includes("Invalid")) {
           return new Response(
             JSON.stringify({ 
               error: `Token inválido: ${authError.message}`,
               hint: "Verifique se o apikey do header corresponde ao SUPABASE_ANON_KEY",
-              status: authError.status || 401
+              status: authError.status || 401,
+              requestId: requestId // Para rastreamento
             }),
             { 
               status: 401, 
@@ -283,7 +347,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: `Erro de autenticação: ${authError.message}`,
-            status: authError.status || 401
+            status: authError.status || 401,
+            requestId: requestId
           }),
           { 
             status: 401, 
@@ -296,8 +361,9 @@ serve(async (req) => {
       }
       
       if (!authUser) {
+        console.error(`[${requestId}] ❌ ERRO: Usuário não encontrado no token`);
         return new Response(
-          JSON.stringify({ error: "Usuário não encontrado no token" }),
+          JSON.stringify({ error: "Usuário não encontrado no token", requestId }),
           { 
             status: 401, 
             headers: { 
@@ -309,7 +375,8 @@ serve(async (req) => {
       }
       
       user = authUser;
-      console.log("Usuário autenticado:", user.id);
+      console.log(`[${requestId}] ✓ Usuário autenticado: ${user.id}`);
+      console.log(`[${requestId}] Email: ${user.email || "não fornecido"}`);
     } else if (!apikey) {
       // Se não tiver nem Authorization nem apikey, negar acesso
       return new Response(
@@ -325,13 +392,25 @@ serve(async (req) => {
     }
 
     // Obter dados do plano
+    console.log(`[${requestId}] === PROCESSANDO BODY ===`);
     const body = await req.json();
+    console.log(`[${requestId}] Body recebido:`, {
+      plan_id: body.plan_id,
+      amount: body.amount,
+      currency: body.currency,
+      user_id: body.user_id
+    });
+    
     const { plan_id, amount, currency, user_id } = body;
     
     // Validar que user_id corresponde ao usuário autenticado
+    console.log(`[${requestId}] === VALIDAÇÃO DE DADOS ===`);
     if (user && user_id !== user.id) {
+      console.error(`[${requestId}] ❌ ERRO: user_id não corresponde`);
+      console.error(`[${requestId}] user_id do body: ${user_id}`);
+      console.error(`[${requestId}] user.id autenticado: ${user.id}`);
       return new Response(
-        JSON.stringify({ error: "user_id não corresponde ao usuário autenticado" }),
+        JSON.stringify({ error: "user_id não corresponde ao usuário autenticado", requestId }),
         { 
           status: 403, 
           headers: { 
@@ -347,8 +426,9 @@ serve(async (req) => {
     const finalUserId = user ? user.id : user_id;
     
     if (!finalUserId) {
+      console.error(`[${requestId}] ❌ ERRO: user_id é obrigatório`);
       return new Response(
-        JSON.stringify({ error: "user_id é obrigatório" }),
+        JSON.stringify({ error: "user_id é obrigatório", requestId }),
         { 
           status: 400, 
           headers: { 
@@ -359,9 +439,13 @@ serve(async (req) => {
       );
     }
     
+    console.log(`[${requestId}] finalUserId: ${finalUserId}`);
+    
     if (!plan_id || !PLAN_CREDITS[plan_id]) {
+      console.error(`[${requestId}] ❌ ERRO: Plano inválido: ${plan_id}`);
+      console.log(`[${requestId}] Planos disponíveis:`, Object.keys(PLAN_CREDITS));
       return new Response(
-        JSON.stringify({ error: "Plano inválido" }),
+        JSON.stringify({ error: `Plano inválido: ${plan_id}`, requestId }),
         { 
           status: 400, 
           headers: { 
@@ -371,8 +455,18 @@ serve(async (req) => {
         }
       );
     }
+    
+    console.log(`[${requestId}] ✓ Plano válido: ${plan_id} (${PLAN_CREDITS[plan_id]} créditos)`);
 
+    // amount vem em centavos (ex: 6990 = R$ 69,90)
+    const amountInCents = amount || PLAN_PRICES[plan_id];
+    console.log(`[${requestId}] === CRIANDO SESSÃO STRIPE ===`);
+    console.log(`[${requestId}] Amount: ${amountInCents} centavos (R$ ${(amountInCents / 100).toFixed(2)})`);
+    console.log(`[${requestId}] Currency: ${currency || "brl"}`);
+    console.log(`[${requestId}] Plan: ${plan_id}`);
+    
     // Criar sessão de checkout no Stripe
+    const stripeStartTime = Date.now();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -382,7 +476,7 @@ serve(async (req) => {
             product_data: {
               name: `Plano ${plan_id} - ${PLAN_CREDITS[plan_id]} créditos`,
             },
-            unit_amount: amount || PLAN_PRICES[plan_id],
+            unit_amount: amountInCents,
           },
           quantity: 1,
         },
@@ -398,26 +492,28 @@ serve(async (req) => {
       },
     });
 
-    // Criar transação pendente no Supabase usando service_role key (bypassa RLS)
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "" // Usa service_role para bypass RLS
-    );
+    const stripeTime = Date.now() - stripeStartTime;
+    console.log(`[${requestId}] ✓ Sessão Stripe criada em ${stripeTime}ms`);
+    console.log(`[${requestId}] Session ID: ${session.id}`);
+    console.log(`[${requestId}] Session URL: ${session.url ? "presente" : "ausente"}`);
 
-    // amount vem em centavos (ex: 6990 = R$ 69,90)
-    const amountInCents = amount || PLAN_PRICES[plan_id];
+    // NOTA: Não criamos a transação aqui - o frontend criará via RLS após obter o sessionId
+    // Isso resolve problemas de autenticação (401) e simplifica o fluxo
+    // O webhook do Stripe ainda atualizará o status usando service_role key (mantém segurança)
+
+    console.log(`[${requestId}] === SUCESSO ===`);
+    console.log(`[${requestId}] Retornando resposta com sessionId`);
     
-    await supabaseAdmin.from("transactions").insert({
-      user_id: finalUserId,
-      stripe_session_id: session.id,
-      plan_id,
-      amount_total: amountInCents,
-      currency: currency || "brl",
-      status: "pending",
-    });
-
     return new Response(
-      JSON.stringify({ sessionId: session.id, url: session.url }),
+      JSON.stringify({ 
+        sessionId: session.id, 
+        url: session.url,
+        // Retornar dados necessários para criar transação no frontend
+        plan_id,
+        amount: amountInCents,
+        currency: currency || "brl",
+        requestId: requestId // Para rastreamento
+      }),
       { 
         status: 200, 
         headers: { 
@@ -427,8 +523,17 @@ serve(async (req) => {
       }
     );
   } catch (error) {
+    console.error(`[${requestId}] ❌❌❌ ERRO CRÍTICO ❌❌❌`);
+    console.error(`[${requestId}] Tipo: ${error.constructor.name}`);
+    console.error(`[${requestId}] Mensagem: ${error.message}`);
+    console.error(`[${requestId}] Stack:`, error.stack);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        requestId: requestId,
+        type: error.constructor.name
+      }),
       { 
         status: 500, 
         headers: { 
