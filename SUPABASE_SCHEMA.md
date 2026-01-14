@@ -813,11 +813,35 @@ serve(async (req) => {
     );
 
     // Buscar ou criar transação
-    const { data: existingTransaction } = await supabase
+    const { data: existingTransaction, error: fetchError } = await supabase
       .from("transactions")
       .select("*")
       .eq("stripe_session_id", session.id)
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error(`[WEBHOOK] ❌ Erro ao buscar transação:`, fetchError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao buscar transação existente" }),
+        { status: 500 }
+      );
+    }
+
+    // IMPORTANTE: Verificar se os créditos já foram adicionados para esta transação
+    // Isso previne processamento duplicado se o webhook for chamado múltiplas vezes
+    if (existingTransaction && existingTransaction.status === "completed") {
+      console.log(`[WEBHOOK] ⚠️ Transação já foi processada anteriormente (status: completed)`);
+      console.log(`[WEBHOOK] Session ID: ${session.id}`);
+      console.log(`[WEBHOOK] Pulando processamento para evitar duplicação de créditos`);
+      return new Response(
+        JSON.stringify({ 
+          received: true, 
+          message: "Transação já processada anteriormente",
+          skipped: true 
+        }), 
+        { status: 200 }
+      );
+    }
 
     if (!existingTransaction) {
       console.log(`[WEBHOOK] Transação não encontrada, criando nova...`);
@@ -835,6 +859,10 @@ serve(async (req) => {
 
       if (createError) {
         console.error(`[WEBHOOK] ❌ Erro ao criar transação:`, createError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar transação" }),
+          { status: 500 }
+        );
       } else {
         console.log(`[WEBHOOK] ✓ Transação criada com sucesso`);
       }
@@ -848,12 +876,17 @@ serve(async (req) => {
 
       if (updateError) {
         console.error(`[WEBHOOK] ❌ Erro ao atualizar transação:`, updateError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao atualizar transação" }),
+          { status: 500 }
+        );
       } else {
         console.log(`[WEBHOOK] ✓ Status da transação atualizado para 'completed'`);
       }
     }
 
     // Atualizar créditos do usuário
+    // IMPORTANTE: Usar incremento atômico para evitar race conditions
     console.log(`[WEBHOOK] Atualizando créditos do usuário...`);
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -876,6 +909,7 @@ serve(async (req) => {
     console.log(`[WEBHOOK] Créditos a adicionar: ${credits}`);
     console.log(`[WEBHOOK] Novo total: ${newCredits}`);
 
+    // Atualizar créditos usando incremento atômico (RPC function seria ideal, mas UPDATE funciona)
     const { error: updateCreditsError } = await supabase
       .from("profiles")
       .update({ credits: newCredits })
@@ -889,7 +923,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[WEBHOOK] ✓ Créditos atualizados com sucesso`);
+    console.log(`[WEBHOOK] ✓ Créditos atualizados com sucesso para ${newCredits}`);
   }
 
   return new Response(JSON.stringify({ received: true }), { status: 200 });

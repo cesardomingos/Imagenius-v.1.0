@@ -370,7 +370,7 @@ export async function checkAndUpdateTransactionStatus(): Promise<{ updated: bool
       const planCredits: Record<string, number> = {
         'starter': 20,
         'genius': 100,
-        'master': 300,
+        'master': 400,
       };
       const creditsToAdd = planCredits[transaction.plan_id] || 0;
       
