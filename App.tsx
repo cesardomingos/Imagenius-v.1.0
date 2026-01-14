@@ -18,6 +18,8 @@ import TutorialModal from './components/TutorialModal';
 import UserProfileModal from './components/UserProfile';
 import ResetPassword from './components/ResetPassword';
 import ConsentModal from './components/ConsentModal';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
 import { getCurrentUser, signOut, checkPrivacyConsent } from './services/supabaseService';
 import { UserProfile } from './types';
 
@@ -49,6 +51,10 @@ const App: React.FC = () => {
   // Consent Modal State
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [isPolicyUpdate, setIsPolicyUpdate] = useState(false);
+
+  // Legal Documents State
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
 
   // Check if we're on the reset password page
   const isResetPasswordPage = window.location.pathname === '/reset-password' || 
@@ -699,11 +705,39 @@ const App: React.FC = () => {
              <span className="font-black text-3xl tracking-tighter">Imagenius</span>
           </div>
           <p className="text-slate-400 text-[10px] font-mono-genius uppercase tracking-[0.5em]">I'm a genius, and you are too</p>
-          <div className="pt-10 flex justify-center gap-12">
+          
+          {/* Legal Links */}
+          <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+            <button
+              onClick={() => setShowPrivacyPolicy(true)}
+              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider"
+            >
+              Política de Privacidade
+            </button>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <button
+              onClick={() => setShowTermsOfService(true)}
+              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors uppercase tracking-wider"
+            >
+              Termos de Uso
+            </button>
+          </div>
+
+          <div className="pt-6 flex justify-center gap-12">
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Todos os direitos reservados</span>
           </div>
         </div>
       </footer>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyPolicy && (
+        <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTermsOfService && (
+        <TermsOfService onClose={() => setShowTermsOfService(false)} />
+      )}
     </div>
   );
 };
