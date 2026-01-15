@@ -82,7 +82,10 @@ export async function suggestPrompts(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // Token JWT do usuário autenticado - usado para autenticação real
         'Authorization': `Bearer ${session.access_token}`,
+        // Chave anon do Supabase - pública por design, usada apenas para identificar requisições válidas
+        // A segurança real vem do RLS (Row Level Security) e do token de autorização acima
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
       },
       body: JSON.stringify({
@@ -139,7 +142,10 @@ export async function generateCoherentImage(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // Token JWT do usuário autenticado - usado para autenticação real
         'Authorization': `Bearer ${session.access_token}`,
+        // Chave anon do Supabase - pública por design, usada apenas para identificar requisições válidas
+        // A segurança real vem do RLS (Row Level Security) e do token de autorização acima
         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
       },
       body: JSON.stringify({

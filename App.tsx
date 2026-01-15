@@ -115,7 +115,7 @@ const App: React.FC = () => {
                                window.location.search.includes('type=recovery');
 
   // Interactive Tour
-  const { run: tourRun, startTour, tourCompleted } = useInteractiveTour();
+  const { run: tourRun, startTour, stopTour, tourCompleted } = useInteractiveTour();
 
   // Toast/Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -236,6 +236,11 @@ const App: React.FC = () => {
 
   // Função para carregar histórico de artes do usuário
   const loadUserArts = useCallback(async (page: number = 1) => {
+    // Só carregar se o usuário estiver logado
+    if (!currentUser) {
+      return;
+    }
+    
     try {
       const result = await fetchUserArts(100, page, galleryPageSize);
       // Converter CommunityArt para GeneratedImage
@@ -247,17 +252,34 @@ const App: React.FC = () => {
       }));
       
       if (page === 1) {
-        setGeneratedImages(convertedImages);
+        // Não sobrescrever imagens que estão sendo geradas
+        if (!isProcessing) {
+          setGeneratedImages(convertedImages);
+        } else {
+          // Mesclar com imagens já geradas na sessão atual
+          setGeneratedImages(prev => {
+            const existingIds = new Set(prev.map(img => img.id));
+            const newImages = convertedImages.filter(img => !existingIds.has(img.id));
+            return [...prev, ...newImages];
+          });
+        }
       } else {
         setGeneratedImages(prev => [...prev, ...convertedImages]);
       }
       
       setGalleryTotal(result.total);
       setGalleryPage(page);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao carregar histórico de artes:', error);
+      // Não mostrar erro 404 como crítico - pode ser que o usuário não tenha imagens ainda
+      if (error?.status !== 404) {
+        setToast({
+          message: 'Erro ao carregar histórico. As imagens geradas nesta sessão ainda estão disponíveis.',
+          type: 'warning'
+        });
+      }
     }
-  }, [galleryPageSize]);
+  }, [galleryPageSize, currentUser, isProcessing]);
 
   // Migrar dados sensíveis para sessionStorage na inicialização
   useEffect(() => {
@@ -724,6 +746,7 @@ const App: React.FC = () => {
       return;
     }
 
+    // Abrir galeria imediatamente para mostrar progresso
     setStep('gallery');
     setBatchStatus({ total: selectedPrompts.length, current: 0 });
     setIsProcessing(true);
@@ -802,9 +825,11 @@ const App: React.FC = () => {
       }
     }
 
+    // Finalizar processamento
     setBatchStatus(null);
     setIsProcessing(false);
     setLoadingProgress(null);
+    setLoadingMsg('');
 
     // Verificar achievements relacionados à geração de imagens
     if (currentUser && successfulGenerations > 0) {
@@ -923,15 +948,13 @@ const App: React.FC = () => {
   };
 
   const resetApp = () => {
-    // Verificar se há imagens geradas não salvas
-    const hasUnsavedImages = generatedImages.length > 0 || previewImage !== null;
-    
-    if (hasUnsavedImages) {
-      // Mostrar modal de confirmação
+    // Mostrar confirmação apenas se houver processos ativos (geração em andamento)
+    if (isProcessing) {
+      // Mostrar modal de confirmação quando há processos ativos
       setPendingReset(() => performReset);
       setShowResetConfirm(true);
     } else {
-      // Resetar diretamente se não houver imagens
+      // Resetar diretamente se não houver processos ativos
       performReset();
     }
   };
@@ -990,7 +1013,8 @@ const App: React.FC = () => {
         goToGallery={() => {
           setStep('gallery');
           // Recarregar histórico ao navegar para a galeria (resetar para página 1)
-          if (currentUser) {
+          // Só recarregar se não estiver processando (para não interferir com geração em andamento)
+          if (currentUser && !isProcessing) {
             setGalleryPage(1);
             loadUserArts(1);
           }
@@ -1121,7 +1145,8 @@ const App: React.FC = () => {
           />
         )}
 
-        {isProcessing && <Loader message={loadingMsg} />}
+        {/* Mostrar Loader apenas quando não estiver na galeria (para não bloquear visualização de progresso) */}
+        {isProcessing && step !== 'gallery' && <Loader message={loadingMsg} progress={loadingProgress} />}
 
         {!isProcessing && (
           <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-3 sm:p-6 md:p-8 lg:p-14 transition-all">
@@ -1489,11 +1514,20 @@ const App: React.FC = () => {
                   <div className="space-y-2">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter">Galeria de <span className="text-genius-gradient">Gênios</span></h2>
                     {batchStatus && (
-                        <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 bg-indigo-600 rounded-full animate-ping"></div>
-                            <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">
-                                Materializando Obra {batchStatus.current} de {batchStatus.total}...
-                            </p>
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-ping"></div>
+                                <p className="text-xs font-black text-indigo-600 uppercase tracking-widest">
+                                    Materializando Obra {batchStatus.current} de {batchStatus.total}...
+                                </p>
+                            </div>
+                            {/* Barra de progresso */}
+                            <div className="w-full max-w-md bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                                <div 
+                                    className="bg-indigo-600 h-full rounded-full transition-all duration-300 ease-out"
+                                    style={{ width: `${(batchStatus.current / batchStatus.total) * 100}%` }}
+                                ></div>
+                            </div>
                         </div>
                     )}
                     {!batchStatus && currentUser && (
@@ -1503,9 +1537,9 @@ const App: React.FC = () => {
                     )}
                   </div>
                   <div className="flex gap-3">
-                    {currentUser && (
+                    {currentUser && !isProcessing && (
                       <button 
-                        onClick={loadUserArts} 
+                        onClick={() => loadUserArts(1)} 
                         className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 px-6 py-5 rounded-[1.5rem] font-black transition-all shadow-lg hover:-translate-y-1 active:scale-95 flex items-center gap-2"
                         title="Atualizar histórico"
                       >
@@ -1531,7 +1565,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-white/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 py-20 mt-20">
+      <footer className="bg-white/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 py-20">
         <div className="container mx-auto px-4 text-center space-y-6">
           <div className="flex items-center justify-center gap-6 opacity-80 group grayscale hover:grayscale-0 transition-all duration-700">
              <div className="relative w-10 h-10 flex items-center justify-center">
