@@ -112,7 +112,7 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
   // Loading State
   if (loading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -130,7 +130,7 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
 
   if (arts.length === 0) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <h3 className="text-3xl font-black text-slate-900 tracking-tight">
@@ -168,7 +168,7 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
   }
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 md:space-y-10">
       {/* Leaderboard */}
       <Leaderboard />
 

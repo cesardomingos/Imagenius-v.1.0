@@ -165,7 +165,7 @@ const SocialShare: React.FC<SocialShareProps> = ({
                 : 'bg-indigo-600 hover:bg-indigo-700 text-white'
             }`}
           >
-            {copied ? '✓ Copiado!' : 'Copiar Link'}
+            {copied ? <><i className="ri-check-line inline-block mr-1"></i> Copiado!</> : 'Copiar Link'}
           </button>
         </div>
       </div>

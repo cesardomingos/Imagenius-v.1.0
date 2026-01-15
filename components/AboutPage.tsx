@@ -19,7 +19,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onClose }) => {
     {
       name: 'Designer de Marca',
       role: 'Profissional de Branding',
-      icon: '🎨',
+      icon: 'ri-palette-line',
       pains: [
         'Precisa manter identidade visual consistente em todas as peças',
         'Gasta horas ajustando manualmente cada variação de imagem',
@@ -58,7 +58,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onClose }) => {
     {
       name: 'Empreendedor/Startup',
       role: 'Fundador de Startup',
-      icon: '🚀',
+      icon: 'ri-rocket-line',
       pains: [
         'Orçamento limitado para design e produção visual',
         'Precisa de materiais profissionais para investidores e clientes',
@@ -110,7 +110,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onClose }) => {
     {
       name: 'Criador de Conteúdo',
       role: 'Content Creator',
-      icon: '✨',
+      icon: 'ri-sparkling-line',
       pains: [
         'Precisa criar conteúdo visual constantemente para manter audiência',
         'Dificuldade em manter identidade visual única e reconhecível',
@@ -162,21 +162,21 @@ const AboutPage: React.FC<AboutPageProps> = ({ onClose }) => {
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <div className="text-3xl mb-2">✓</div>
+                <i className="ri-check-line text-3xl mb-2 text-green-600 dark:text-green-400"></i>
                 <h3 className="font-black text-slate-900 dark:text-white">100% Coerência</h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                   Única IA que garante que todas as imagens mantenham o mesmo estilo visual
                 </p>
               </div>
               <div className="space-y-2">
-                <div className="text-3xl mb-2">⚡</div>
+                <i className="ri-flashlight-line text-3xl mb-2 text-yellow-600 dark:text-yellow-400"></i>
                 <h3 className="font-black text-slate-900 dark:text-white">Produção em Massa</h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                   Crie dezenas de variações mantendo identidade visual, em minutos
                 </p>
               </div>
               <div className="space-y-2">
-                <div className="text-3xl mb-2">💰</div>
+                <i className="ri-money-dollar-circle-line text-3xl mb-2 text-green-600 dark:text-green-400"></i>
                 <h3 className="font-black text-slate-900 dark:text-white">Redução de Custos</h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                   Elimine necessidade de fotógrafos e designers para cada projeto
@@ -199,8 +199,8 @@ const AboutPage: React.FC<AboutPageProps> = ({ onClose }) => {
                 >
                   {/* Profile Header */}
                   <div className="flex items-start gap-4 mb-6">
-                    <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-3xl">
-                      {profile.icon}
+                    <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center">
+                      <i className={`${profile.icon} text-3xl text-indigo-600 dark:text-indigo-400`}></i>
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-black text-slate-900 dark:text-white mb-1">
@@ -230,7 +230,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onClose }) => {
                   {/* Solution */}
                   <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-200 dark:border-indigo-700">
                     <h4 className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2">
-                      ✨ Como o Imagenius Resolve
+                      Como o Imagenius Resolve
                     </h4>
                     <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                       {profile.solution}

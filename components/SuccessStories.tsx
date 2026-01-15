@@ -18,7 +18,7 @@ const STORIES: SuccessStory[] = [
     name: 'Maria Silva',
     role: 'Diretora de Marketing',
     company: 'TechStart Brasil',
-    image: '👩‍💼',
+    image: 'ri-user-line',
     quote: 'O Imagenius revolucionou nossa produção de conteúdo. Conseguimos manter a identidade visual da marca em todas as campanhas, economizando horas de trabalho e garantindo consistência perfeita.',
     results: [
       'Redução de 70% no tempo de produção de imagens',
@@ -32,7 +32,7 @@ const STORIES: SuccessStory[] = [
     name: 'João Santos',
     role: 'Fundador',
     company: 'E-commerce Premium',
-    image: '👨‍💻',
+    image: 'ri-code-line',
     quote: 'Como e-commerce, precisávamos de fotos de produtos consistentes e profissionais. O Imagenius nos permitiu criar centenas de variações mantendo o mesmo estilo, elevando a qualidade visual da nossa loja.',
     results: [
       '500+ fotos de produtos geradas em 1 semana',
@@ -46,7 +46,7 @@ const STORIES: SuccessStory[] = [
     name: 'Ana Costa',
     role: 'Designer Gráfica',
     company: 'Agência Criativa',
-    image: '👩‍🎨',
+    image: 'ri-paint-brush-line',
     quote: 'O modo "Fundir Ideias" é incrível! Consigo combinar estilos de diferentes referências para criar algo completamente único. Isso abriu novas possibilidades criativas que eu nem imaginava.',
     results: [
       '3x mais projetos entregues por mês',
@@ -60,7 +60,7 @@ const STORIES: SuccessStory[] = [
     name: 'Carlos Oliveira',
     role: 'CEO',
     company: 'Startup Inovadora',
-    image: '👨‍🚀',
+    image: 'ri-rocket-line',
     quote: 'Para uma startup, cada real conta. O Imagenius nos permitiu criar todo o material visual do nosso pitch deck e apresentações mantendo um estilo profissional e coeso, sem precisar contratar uma agência.',
     results: [
       'Pitch deck completo criado em 2 dias',
@@ -73,7 +73,7 @@ const STORIES: SuccessStory[] = [
 
 const SuccessStories: React.FC = () => {
   return (
-    <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-12">
+    <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-8 md:space-y-10">
       <div className="text-center space-y-4">
         <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
           Casos de <span className="text-genius-gradient">Sucesso</span>
@@ -91,8 +91,8 @@ const SuccessStories: React.FC = () => {
           >
             {/* Header */}
             <div className="flex items-start gap-4 mb-6">
-              <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">
-                {story.image}
+              <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <i className={`${story.image} text-3xl text-indigo-600 dark:text-indigo-400`}></i>
               </div>
               <div className="flex-1">
                 <h3 className="font-black text-slate-900 dark:text-white text-lg mb-1">
@@ -137,7 +137,7 @@ const SuccessStories: React.FC = () => {
       </div>
 
       {/* CTA */}
-      <div className="mt-12 text-center p-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl text-white">
+      <div className="mt-8 md:mt-10 text-center p-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl text-white">
         <h3 className="text-2xl md:text-3xl font-black mb-4">
           Seja o próximo caso de sucesso!
         </h3>

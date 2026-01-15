@@ -27,7 +27,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
       description: 'O Imagenius irá sugerir descrições de cena baseadas na sua imagem âncora e nos temas definidos. Você pode escolher uma ou ambas as sugestões, e até mesmo editar a descrição. Se preferir, você pode escrever ou editar a descrição diretamente em inglês para obter resultados ainda melhores.',
       image: '/tutorial_image_3.jpg',
       imageAlt: 'Tutorial - Escolher Descrição de Cena',
-      tip: '💡 Dica: Descrever em inglês geralmente produz resultados melhores! Você pode editar as sugestões ou criar suas próprias descrições.'
+      tip: 'Dica: Descrever em inglês geralmente produz resultados melhores! Você pode editar as sugestões ou criar suas próprias descrições.'
     },
     {
       title: 'Passo 4: Exemplos de Resultados',

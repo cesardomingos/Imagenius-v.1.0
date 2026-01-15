@@ -23,8 +23,8 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ run, onComplete }) =>
       target: 'body',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-black text-slate-900 dark:text-white">
-            Bem-vindo ao Imagenius! 🎨
+          <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            Bem-vindo ao Imagenius! <i className="ri-palette-line text-indigo-600 dark:text-indigo-400"></i>
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Vamos fazer um tour rápido para você conhecer as principais funcionalidades.
@@ -107,10 +107,13 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ run, onComplete }) =>
   ];
 
   useEffect(() => {
-    if (run && !isVisible) {
+    // Verificar se o tour já foi completado
+    const tourCompleted = localStorage.getItem('imagenius_tour_completed') === 'true';
+    
+    if (run && !isVisible && !tourCompleted) {
       setIsVisible(true);
       setCurrentStep(0);
-    } else if (!run) {
+    } else if (!run || tourCompleted) {
       setIsVisible(false);
       setCurrentStep(0);
     }
@@ -142,41 +145,61 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ run, onComplete }) =>
         return;
       }
 
+      // Fazer scroll suave até o elemento se necessário
       const rect = targetElement.getBoundingClientRect();
-      const tooltipWidth = 320;
-      const tooltipHeight = 200;
-      const spacing = 20;
-
-      let top = 0;
-      let left = 0;
-
-      switch (step.placement) {
-        case 'top':
-          top = rect.top - tooltipHeight - spacing;
-          left = rect.left + rect.width / 2 - tooltipWidth / 2;
-          break;
-        case 'bottom':
-          top = rect.bottom + spacing;
-          left = rect.left + rect.width / 2 - tooltipWidth / 2;
-          break;
-        case 'left':
-          top = rect.top + rect.height / 2 - tooltipHeight / 2;
-          left = rect.left - tooltipWidth - spacing;
-          break;
-        case 'right':
-          top = rect.top + rect.height / 2 - tooltipHeight / 2;
-          left = rect.right + spacing;
-          break;
-        default:
-          top = rect.top + rect.height / 2 - tooltipHeight / 2;
-          left = rect.left + rect.width / 2 - tooltipWidth / 2;
+      const isElementVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      
+      if (!isElementVisible) {
+        targetElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        // Aguardar o scroll completar antes de posicionar
+        setTimeout(() => {
+          updatePositionAfterScroll();
+        }, 500);
+      } else {
+        updatePositionAfterScroll();
       }
 
-      // Ajustar para não sair da tela
-      top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
-      left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
+      function updatePositionAfterScroll() {
+        const updatedRect = targetElement.getBoundingClientRect();
+        const tooltipWidth = 320;
+        const tooltipHeight = 200;
+        const spacing = 20;
 
-      setPosition({ top, left });
+        let top = 0;
+        let left = 0;
+
+        switch (step.placement) {
+          case 'top':
+            top = updatedRect.top - tooltipHeight - spacing;
+            left = updatedRect.left + updatedRect.width / 2 - tooltipWidth / 2;
+            break;
+          case 'bottom':
+            top = updatedRect.bottom + spacing;
+            left = updatedRect.left + updatedRect.width / 2 - tooltipWidth / 2;
+            break;
+          case 'left':
+            top = updatedRect.top + updatedRect.height / 2 - tooltipHeight / 2;
+            left = updatedRect.left - tooltipWidth - spacing;
+            break;
+          case 'right':
+            top = updatedRect.top + updatedRect.height / 2 - tooltipHeight / 2;
+            left = updatedRect.right + spacing;
+            break;
+          default:
+            top = updatedRect.top + updatedRect.height / 2 - tooltipHeight / 2;
+            left = updatedRect.left + updatedRect.width / 2 - tooltipWidth / 2;
+        }
+
+        // Ajustar para não sair da tela
+        top = Math.max(20, Math.min(top, window.innerHeight - tooltipHeight - 20));
+        left = Math.max(20, Math.min(left, window.innerWidth - tooltipWidth - 20));
+
+        setPosition({ top, left });
+      }
 
       // Destacar elemento
       (targetElement as HTMLElement).style.zIndex = '10000';
@@ -184,21 +207,26 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ run, onComplete }) =>
       (targetElement as HTMLElement).classList.add('tour-highlight');
     };
 
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+      // Aguardar um pouco para garantir que o DOM está pronto
+      const timer = setTimeout(() => {
+        updatePosition();
+      }, 100);
 
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-      // Remover highlight
-      const targetElement = document.querySelector(steps[currentStep]?.target);
-      if (targetElement) {
-        (targetElement as HTMLElement).classList.remove('tour-highlight');
-        (targetElement as HTMLElement).style.zIndex = '';
-        (targetElement as HTMLElement).style.position = '';
-      }
-    };
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', updatePosition, true);
+        // Remover highlight
+        const targetElement = document.querySelector(steps[currentStep]?.target);
+        if (targetElement) {
+          (targetElement as HTMLElement).classList.remove('tour-highlight');
+          (targetElement as HTMLElement).style.zIndex = '';
+          (targetElement as HTMLElement).style.position = '';
+        }
+      };
   }, [currentStep, isVisible, steps]);
 
   const handleNext = () => {
@@ -217,6 +245,7 @@ const InteractiveTour: React.FC<InteractiveTourProps> = ({ run, onComplete }) =>
     setIsVisible(false);
     setCurrentStep(0);
     localStorage.setItem('imagenius_tour_completed', 'true');
+    // Forçar atualização do estado para parar o tour
     if (onComplete) {
       onComplete();
     }
@@ -345,7 +374,11 @@ export function useInteractiveTour() {
   const tourCompleted = useTourCompleted();
 
   const startTour = () => {
-    setRun(true);
+    // Verificar se já foi completado antes de iniciar
+    const completed = localStorage.getItem('imagenius_tour_completed') === 'true';
+    if (!completed) {
+      setRun(true);
+    }
   };
 
   const stopTour = () => {
@@ -356,6 +389,13 @@ export function useInteractiveTour() {
     localStorage.removeItem('imagenius_tour_completed');
     setRun(true);
   };
+
+  // Atualizar run quando tourCompleted mudar
+  useEffect(() => {
+    if (tourCompleted && run) {
+      setRun(false);
+    }
+  }, [tourCompleted, run]);
 
   return {
     run,

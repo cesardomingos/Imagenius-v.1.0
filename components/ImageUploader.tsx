@@ -116,7 +116,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             className="w-full h-auto"
           />
           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-black px-2 py-1 rounded-lg">
-            ✓ Válido
+            <i className="ri-check-line inline-block mr-1"></i> Válido
           </div>
           {fileSize && (
             <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-lg">

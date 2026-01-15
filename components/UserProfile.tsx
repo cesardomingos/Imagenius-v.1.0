@@ -543,7 +543,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                             >
                               <div className="flex items-center gap-2">
                                 {milestone.reached ? (
-                                  <span className="text-lg">✓</span>
+                                  <i className="ri-check-line text-lg text-green-600 dark:text-green-400"></i>
                                 ) : (
                                   <span className="text-slate-400">○</span>
                                 )}
@@ -572,7 +572,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                   <div className="pt-3 border-t border-indigo-200 dark:border-indigo-700">
                     <div className="bg-white dark:bg-slate-800 rounded-lg p-4 space-y-2">
                       <p className="text-sm font-bold text-slate-900 dark:text-white">
-                        💡 Como funciona:
+                        <i className="ri-lightbulb-line inline-block mr-1"></i> Como funciona:
                       </p>
                       <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1.5 list-disc list-inside">
                         <li>Compartilhe seu link único com amigos e colegas</li>
@@ -581,7 +581,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                       </ul>
                       <div className="pt-2 mt-3 border-t border-slate-200 dark:border-slate-700">
                         <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                          🎁 Quanto mais você convida, mais créditos você ganha!
+                          <i className="ri-gift-line inline-block mr-1"></i> Quanto mais você convida, mais créditos você ganha!
                         </p>
                       </div>
                     </div>
@@ -675,7 +675,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                     {resetPasswordSent ? (
                       <div className="space-y-2">
                         <p className="text-sm font-bold text-indigo-900">
-                          ✓ Email enviado com sucesso!
+                          <i className="ri-check-line inline-block mr-1"></i> Email enviado com sucesso!
                         </p>
                         <p className="text-xs text-indigo-700">
                           Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.

@@ -50,7 +50,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onComplete,
       content: (
         <div className="space-y-6 text-center">
           <div className="w-24 h-24 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mx-auto">
-            <span className="text-5xl">✨</span>
+            <i className="ri-sparkling-line text-5xl text-indigo-600 dark:text-indigo-400"></i>
           </div>
           <div>
             <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">
@@ -124,15 +124,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onComplete,
               </p>
               <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
                 <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-0.5">✓</span>
+                  <i className="ri-check-line text-green-500 mt-0.5"></i>
                   <span>Mantém identidade visual</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-0.5">✓</span>
+                  <i className="ri-check-line text-green-500 mt-0.5"></i>
                   <span>Ideal para séries consistentes</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-0.5">✓</span>
+                  <i className="ri-check-line text-green-500 mt-0.5"></i>
                   <span>Perfeito para branding</span>
                 </li>
               </ul>
@@ -175,7 +175,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ isOpen, onComplete,
           </div>
           <div>
             <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-3">
-              Você ganhou 5 créditos de boas-vindas! 🎁
+              Você ganhou 5 créditos de boas-vindas!
             </h3>
             <p className="text-slate-600 dark:text-slate-400 font-medium">
               Agora você tem 20 créditos para começar a criar. Vamos lá!

@@ -49,7 +49,7 @@ const ComparisonSection: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'before' | 'after'>('before');
 
   return (
-    <div className="mt-16 space-y-8">
+    <div className="mt-8 md:mt-10 space-y-6 md:space-y-8">
       <div className="text-center space-y-4">
         <h3 className="text-3xl font-black text-slate-900 dark:text-white">
           Por que <span className="text-genius-gradient">Imagenius</span>?

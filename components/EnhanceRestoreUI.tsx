@@ -228,7 +228,7 @@ const EnhanceRestoreUI: React.FC<EnhanceRestoreUIProps> = ({
             disabled={!referenceImage}
             className="w-full bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-black py-4 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
           >
-            <span className="text-xl">{isEnhance ? '✨' : '🔧'}</span>
+            <i className={`text-xl ${isEnhance ? 'ri-sparkling-line' : 'ri-tools-line'}`}></i>
             <span>{isEnhance ? 'Melhorar Imagem' : 'Restaurar Imagem'}</span>
           </button>
         </div>

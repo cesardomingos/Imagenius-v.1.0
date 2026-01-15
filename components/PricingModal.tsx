@@ -85,13 +85,24 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
       isOpen={true}
       onClose={onClose}
       size="xl"
-      showCloseButton={true}
+      showCloseButton={false}
       className="p-0 flex flex-col"
     >
 
       <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden h-full min-h-0">
           {/* Banner Lateral */}
           <div className="lg:col-span-4 bg-slate-900 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] sm:min-h-[300px] lg:min-h-full lg:h-full">
+            {/* Botão de Fechar - Posicionado no topo direito da coluna azul */}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all hover:scale-110 active:scale-95"
+              aria-label="Fechar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
             
             <div className="relative z-10 space-y-4 sm:space-y-6">
@@ -173,7 +184,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
                     )}
                     {plan.type === 'one-time' && plan.pixBonus && (
                       <div className="text-[9px] sm:text-[10px] font-bold text-green-600 dark:text-green-400">
-                        🎁 +{plan.pixBonus} créditos ao pagar via PIX
+                        <i className="ri-gift-line inline-block mr-1"></i> +{plan.pixBonus} créditos ao pagar via PIX
                       </div>
                     )}
                   </div>

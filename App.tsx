@@ -289,10 +289,17 @@ const App: React.FC = () => {
 
   // Iniciar tour na primeira visita
   useEffect(() => {
-    if (step === 'mode_selection' && !tourCompleted && !tourRun) {
+    // Verificar novamente se foi completado (pode ter mudado)
+    const tourCompletedCheck = localStorage.getItem('imagenius_tour_completed') === 'true';
+    
+    if (step === 'mode_selection' && !tourCompletedCheck && !tourRun) {
       // Aguardar um pouco para garantir que a página carregou completamente
       const timer = setTimeout(() => {
-        startTour();
+        // Verificar novamente antes de iniciar
+        const checkAgain = localStorage.getItem('imagenius_tour_completed') === 'true';
+        if (!checkAgain) {
+          startTour();
+        }
       }, 1000);
       return () => clearTimeout(timer);
     }
@@ -1002,7 +1009,7 @@ const App: React.FC = () => {
         onOpenTutorial={() => setIsTutorialOpen(true)}
       />
       
-      <main className="flex-grow container mx-auto px-2 sm:px-4 py-6 sm:py-8 md:py-12 pb-20 sm:pb-24 md:pb-12 max-w-4xl">
+      <main className="flex-grow container mx-auto px-2 sm:px-4 py-6 sm:py-8 md:py-12 pb-20 sm:pb-24 md:pb-12 max-w-4xl md:max-w-6xl lg:max-w-7xl">
         {isStoreOpen && (
           <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div></div>}>
             <PricingModal 
@@ -1056,7 +1063,7 @@ const App: React.FC = () => {
               if (currentUser) {
                 setCredits(prev => prev + 5);
                 setToast({
-                  message: 'Bem-vindo! Você ganhou 5 créditos de boas-vindas! 🎁',
+                  message: 'Bem-vindo! Você ganhou 5 créditos de boas-vindas!',
                   type: 'success'
                 });
               }
@@ -1120,8 +1127,8 @@ const App: React.FC = () => {
           <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-3 sm:p-6 md:p-8 lg:p-14 transition-all">
             
             {step === 'mode_selection' && (
-              <div className="space-y-8 sm:space-y-12 md:space-y-16 animate-in fade-in duration-700">
-                <div className="text-center space-y-4 sm:space-y-6">
+              <div className="space-y-6 sm:space-y-8 md:space-y-10 animate-in fade-in duration-700">
+                <div className="text-center space-y-3 sm:space-y-4 md:space-y-5">
                   <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-slate-900 dark:text-white tracking-tighter px-2 sm:px-4">
                     Crie imagens que mantêm o mesmo estilo. <span className="text-genius-gradient">Sempre.</span>
                   </h2>
@@ -1131,12 +1138,12 @@ const App: React.FC = () => {
                   <div className="flex items-center justify-center gap-4 pt-4">
                     <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-full border border-indigo-200 dark:border-indigo-700">
                       <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                        ✓ Coerência Visual Garantida
+                        <i className="ri-check-line inline-block mr-1"></i> Coerência Visual Garantida
                       </span>
                     </div>
                     <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-full border border-indigo-200 dark:border-indigo-700">
                       <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
-                        🎁 15 Créditos Grátis
+                        <i className="ri-gift-line inline-block mr-1"></i> 15 Créditos Grátis
                       </span>
                     </div>
                   </div>
@@ -1149,7 +1156,7 @@ const App: React.FC = () => {
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 sm:px-0" data-tour="mode-selection">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-8 px-4 sm:px-0" data-tour="mode-selection">
                   {/* Botões de Tutorial e Exemplos */}
                   <div className="md:col-span-2 flex justify-center gap-3 sm:gap-4 flex-wrap">
                     <button
@@ -1212,12 +1219,12 @@ const App: React.FC = () => {
                 <SuccessStories />
 
                 {/* Seção de Blog/Conteúdo */}
-                <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
+                <div className="pt-8 md:pt-10 mt-8 md:mt-10 border-t border-slate-200 dark:border-slate-700">
                   <BlogContentSection />
                 </div>
 
                 {/* Galeria da Comunidade */}
-                <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
+                <div className="pt-8 md:pt-10 mt-8 md:mt-10 border-t border-slate-200 dark:border-slate-700">
                   <Suspense fallback={<GallerySkeleton count={6} />}>
                     <CommunityGallery />
                   </Suspense>
@@ -1593,7 +1600,8 @@ const App: React.FC = () => {
       <InteractiveTour 
         run={tourRun} 
         onComplete={() => {
-          // Tour completed
+          // Tour completed - parar o tour
+          stopTour();
         }}
       />
     </div>

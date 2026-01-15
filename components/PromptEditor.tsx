@@ -104,7 +104,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({ suggestions, onGenerate, cr
               
               <div className="mt-5 flex items-center justify-between">
                 <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-300 dark:text-slate-600'}`}>
-                    {isSelected ? '✓ Selecionado' : 'Pronto para criar'}
+                    {isSelected ? <><i className="ri-check-line inline-block mr-1"></i> Selecionado</> : 'Pronto para criar'}
                 </span>
                 {!isSelected && (
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity font-bold">Clique para adicionar</span>

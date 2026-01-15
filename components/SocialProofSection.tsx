@@ -138,7 +138,7 @@ const SocialProofSection: React.FC<SocialProofSectionProps> = ({ className = '' 
   };
 
   return (
-    <div className={`space-y-12 ${className}`}>
+    <div className={`space-y-8 md:space-y-10 ${className}`}>
       {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-3xl p-8 border border-indigo-200 dark:border-indigo-700 text-center">
@@ -173,21 +173,21 @@ const SocialProofSection: React.FC<SocialProofSectionProps> = ({ className = '' 
       <div className="flex flex-wrap items-center justify-center gap-4">
         <div className="px-6 py-3 bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-700 rounded-2xl">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">⭐</span>
+            <i className="ri-star-fill text-2xl text-yellow-400"></i>
             <span className="font-black text-slate-900 dark:text-white">4.8/5</span>
             <span className="text-sm text-slate-500 dark:text-slate-400">estrelas</span>
           </div>
         </div>
         <div className="px-6 py-3 bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-700 rounded-2xl">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">✓</span>
+            <i className="ri-check-line text-2xl text-green-500"></i>
             <span className="font-black text-slate-900 dark:text-white">100%</span>
             <span className="text-sm text-slate-500 dark:text-slate-400">Coerência</span>
           </div>
         </div>
         <div className="px-6 py-3 bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-700 rounded-2xl">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🚀</span>
+            <i className="ri-rocket-line text-2xl text-indigo-600 dark:text-indigo-400"></i>
             <span className="font-black text-slate-900 dark:text-white">90%</span>
             <span className="text-sm text-slate-500 dark:text-slate-400">Redução de Custos</span>
           </div>
@@ -203,7 +203,7 @@ const SocialProofSection: React.FC<SocialProofSectionProps> = ({ className = '' 
           >
             <div className="flex items-center gap-1 mb-4">
               {Array.from({ length: testimonial.rating }).map((_, i) => (
-                <span key={i} className="text-yellow-400 text-lg">⭐</span>
+                <i key={i} className="ri-star-fill text-lg text-yellow-400"></i>
               ))}
             </div>
             <p className="text-slate-600 dark:text-slate-400 mb-4 italic leading-relaxed">

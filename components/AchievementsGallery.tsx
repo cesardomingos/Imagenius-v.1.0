@@ -228,12 +228,12 @@ const AchievementsGallery: React.FC<AchievementsGalleryProps> = ({ isOpen, onClo
                         <div className="pt-2">
                           {achievement.isUnique && achievement.reward && (
                             <p className="text-xs font-bold text-green-600 dark:text-green-400">
-                              ✓ Recompensa: +{achievement.reward.amount} crédito{achievement.reward.amount > 1 ? 's' : ''}
+                              <i className="ri-check-line inline-block mr-1"></i> Recompensa: +{achievement.reward.amount} crédito{achievement.reward.amount > 1 ? 's' : ''}
                             </p>
                           )}
                           {!achievement.isUnique && achievement.levels && (
                             <p className="text-xs font-bold text-green-600 dark:text-green-400">
-                              ✓ Recompensa atual: +{achievement.levels.find(l => l.level === currentLevel)?.reward.amount || 0} crédito{achievement.levels.find(l => l.level === currentLevel)?.reward.amount !== 1 ? 's' : ''}
+                              <i className="ri-check-line inline-block mr-1"></i> Recompensa atual: +{achievement.levels.find(l => l.level === currentLevel)?.reward.amount || 0} crédito{achievement.levels.find(l => l.level === currentLevel)?.reward.amount !== 1 ? 's' : ''}
                             </p>
                           )}
                         </div>

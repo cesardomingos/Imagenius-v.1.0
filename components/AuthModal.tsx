@@ -306,7 +306,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
                 {confirmationEmailSent ? (
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">
-                      ✓ Email de confirmação enviado!
+                      <i className="ri-check-line inline-block mr-1"></i> Email de confirmação enviado!
                     </p>
                     <p className="text-xs text-indigo-700 dark:text-indigo-300">
                       Verifique sua caixa de entrada e spam. Clique no link de confirmação para ativar sua conta.
@@ -366,7 +366,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
                 {resetPasswordSent ? (
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-indigo-900">
-                      ✓ Email enviado com sucesso!
+                      <i className="ri-check-line inline-block mr-1"></i> Email enviado com sucesso!
                     </p>
                     <p className="text-xs text-indigo-700">
                       Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.

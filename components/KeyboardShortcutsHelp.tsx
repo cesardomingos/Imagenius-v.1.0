@@ -73,7 +73,7 @@ const KeyboardShortcutsHelp: React.FC<KeyboardShortcutsHelpProps> = ({
 
           <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-200 dark:border-indigo-700">
             <p className="text-sm text-indigo-700 dark:text-indigo-300 font-bold">
-              💡 Dica: Pressione <kbd className="px-2 py-1 bg-indigo-600 text-white rounded text-xs">?</kbd> a qualquer momento para ver esta ajuda
+              <i className="ri-lightbulb-line inline-block mr-1"></i> Dica: Pressione <kbd className="px-2 py-1 bg-indigo-600 text-white rounded text-xs">?</kbd> a qualquer momento para ver esta ajuda
             </p>
           </div>
         </div>

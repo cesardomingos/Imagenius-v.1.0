@@ -21,7 +21,7 @@ const BlogContentSection: React.FC = () => {
       description: 'Aprenda a usar o Imagenius para manter a coerência visual em todas as suas criações, desde posts de redes sociais até materiais impressos.',
       category: 'tutorial',
       readTime: '5 min',
-      icon: '🎨',
+      icon: 'ri-palette-line',
       tags: ['Branding', 'Design', 'Consistência']
     },
     {
@@ -30,7 +30,7 @@ const BlogContentSection: React.FC = () => {
       description: 'Veja como uma loja online usou o Imagenius para gerar fotos de produtos profissionais mantendo o mesmo estilo visual em todas as imagens.',
       category: 'case-study',
       readTime: '7 min',
-      icon: '📸',
+      icon: 'ri-camera-line',
       tags: ['E-commerce', 'Fotografia', 'Produtos']
     },
     {
@@ -39,7 +39,7 @@ const BlogContentSection: React.FC = () => {
       description: 'Descubra por que descrever suas ideias em inglês produz resultados mais precisos e como aproveitar ao máximo o poder da IA.',
       category: 'tip',
       readTime: '3 min',
-      icon: '💡',
+      icon: 'ri-lightbulb-line',
       tags: ['Dicas', 'IA', 'Prompts']
     },
     {
@@ -48,7 +48,7 @@ const BlogContentSection: React.FC = () => {
       description: 'Aprenda a usar o Modo Studio para combinar o DNA visual de até 5 imagens diferentes e criar algo completamente novo e único.',
       category: 'tutorial',
       readTime: '8 min',
-      icon: '🧪',
+      icon: 'ri-flask-line',
       tags: ['Modo Studio', 'Tutorial', 'Avançado']
     },
     {
@@ -57,7 +57,7 @@ const BlogContentSection: React.FC = () => {
       description: 'Conheça a história de uma agência que transformou seu workflow usando o Imagenius para gerar conteúdo visual rapidamente.',
       category: 'case-study',
       readTime: '6 min',
-      icon: '🚀',
+      icon: 'ri-rocket-line',
       tags: ['Marketing', 'Produtividade', 'Workflow']
     },
     {
@@ -66,7 +66,7 @@ const BlogContentSection: React.FC = () => {
       description: 'Saiba como usar o template de Restauração para melhorar fotos antigas, remover imperfeições e dar nova vida a memórias importantes.',
       category: 'tip',
       readTime: '4 min',
-      icon: '✨',
+      icon: 'ri-sparkling-line',
       tags: ['Restauração', 'Fotos', 'Melhorias']
     }
   ];
@@ -94,7 +94,7 @@ const BlogContentSection: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
         <h2 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white">
@@ -134,8 +134,8 @@ const BlogContentSection: React.FC = () => {
             <div className="p-6 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                    {post.icon}
+                  <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i className={`${post.icon} text-2xl text-indigo-600 dark:text-indigo-400`}></i>
                   </div>
                   <div>
                     <span className={`inline-block px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${getCategoryColor(post.category)}`}>
@@ -186,7 +186,7 @@ const BlogContentSection: React.FC = () => {
       </div>
 
       {/* CTA Final */}
-      <div className="text-center pt-8">
+      <div className="text-center pt-6 md:pt-8">
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
           Quer ver mais conteúdo? Explore nossa galeria de casos de uso
         </p>

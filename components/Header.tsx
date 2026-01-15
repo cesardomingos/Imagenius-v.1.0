@@ -217,7 +217,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
               data-tour="credits"
             >
               <div className="flex flex-col items-end">
-                <span className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Créditos (1 = 1 imagem)</span>
+                <span className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Créditos</span>
                 <span className="text-xs md:text-sm font-black text-slate-900 dark:text-white">{credits}</span>
               </div>
               <div className="w-7 h-7 md:w-8 md:h-8 bg-genius-gradient rounded-lg md:rounded-xl flex items-center justify-center text-white shadow shadow-indigo-100/50 group-hover:scale-110 transition-transform">

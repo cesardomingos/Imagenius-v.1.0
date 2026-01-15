@@ -96,18 +96,18 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, o
   );
 
   const categories = [
-    { id: null, name: 'Todos', icon: '📋' },
-    { id: 'business', name: 'Negócios', icon: '💼' },
-    { id: 'commercial', name: 'Comercial', icon: '📈' },
-    { id: 'creative', name: 'Criativo', icon: '🎨' },
-    { id: 'restoration', name: 'Restauração', icon: '🔧' }
+    { id: null, name: 'Todos', icon: 'ri-file-list-line' },
+    { id: 'business', name: 'Negócios', icon: 'ri-briefcase-line' },
+    { id: 'commercial', name: 'Comercial', icon: 'ri-line-chart-line' },
+    { id: 'creative', name: 'Criativo', icon: 'ri-palette-line' },
+    { id: 'restoration', name: 'Restauração', icon: 'ri-tools-line' }
   ];
 
   const categoryLabels: Record<string, string> = {
-    business: '💼 Negócios',
-    commercial: '📈 Comercial',
-    creative: '🎨 Criativo',
-    restoration: '🔧 Restauração'
+    business: 'Negócios',
+    commercial: 'Comercial',
+    creative: 'Criativo',
+    restoration: 'Restauração'
   };
 
   return (
@@ -160,7 +160,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, o
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
-              <span className="mr-2">{category.icon}</span>
+              <i className={`${category.icon} mr-2`}></i>
               {category.name}
             </button>
           ))}
@@ -184,10 +184,10 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, o
         ) : (
           // Mostrar todos os templates agrupados normalmente
           <>
-            {businessTemplates.length > 0 && renderTemplateGrid(businessTemplates, '💼 Negócios')}
-            {commercialTemplates.length > 0 && renderTemplateGrid(commercialTemplates, '📈 Comercial')}
-            {creativeTemplates.length > 0 && renderTemplateGrid(creativeTemplates, '🎨 Criativo')}
-            {restorationTemplates.length > 0 && renderTemplateGrid(restorationTemplates, '🔧 Restauração')}
+            {businessTemplates.length > 0 && renderTemplateGrid(businessTemplates, 'Negócios')}
+            {commercialTemplates.length > 0 && renderTemplateGrid(commercialTemplates, 'Comercial')}
+            {creativeTemplates.length > 0 && renderTemplateGrid(creativeTemplates, 'Criativo')}
+            {restorationTemplates.length > 0 && renderTemplateGrid(restorationTemplates, 'Restauração')}
           </>
         )}
 

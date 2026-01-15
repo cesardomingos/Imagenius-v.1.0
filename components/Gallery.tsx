@@ -114,7 +114,7 @@ const Gallery: React.FC<GalleryProps> = ({
           setIsShared(true);
           // Se o modal ainda estiver aberto, mostrar mensagem
           if (selectedImage) {
-            setShareMessage('Arte compartilhada com sucesso com a comunidade! 🎨');
+            setShareMessage('Arte compartilhada com sucesso com a comunidade!');
             setTimeout(() => setShareMessage(null), 5000);
           }
         } else {
@@ -353,7 +353,7 @@ const Gallery: React.FC<GalleryProps> = ({
                   
                   {shareMessage && (
                     <div className={`p-3 rounded-lg text-sm font-medium ${
-                      shareMessage.includes('sucesso') || shareMessage.includes('🎨')
+                      shareMessage.includes('sucesso')
                         ? 'bg-green-50 text-green-700 border border-green-200'
                         : 'bg-red-50 text-red-700 border border-red-200'
                     }`}>

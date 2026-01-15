@@ -26,15 +26,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   const variantStyles = {
     danger: {
       button: 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600',
-      icon: '🔴'
+      icon: 'ri-error-warning-line'
     },
     warning: {
       button: 'bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600',
-      icon: '⚠️'
+      icon: 'ri-alert-line'
     },
     info: {
       button: 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600',
-      icon: 'ℹ️'
+      icon: 'ri-information-line'
     }
   };
 
@@ -49,7 +49,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     >
       <div className="space-y-6">
         <div className="text-center">
-          <div className="text-5xl mb-4">{styles.icon}</div>
+          <div className="text-5xl mb-4">
+            {typeof styles.icon === 'string' && styles.icon.startsWith('ri-') ? (
+              <i className={styles.icon}></i>
+            ) : (
+              styles.icon
+            )}
+          </div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">
             {title}
           </h2>
