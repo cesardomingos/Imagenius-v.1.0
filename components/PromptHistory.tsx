@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getPromptHistory, deletePromptFromHistory, PromptHistoryItem } from '../services/promptHistoryService';
+import BaseModal from './BaseModal';
 
 interface PromptHistoryProps {
   onSelectPrompt: (prompt: string) => void;
@@ -56,26 +57,15 @@ const PromptHistory: React.FC<PromptHistoryProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 animate-in zoom-in duration-200">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white">
-            Histórico de Prompts
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-500 dark:text-slate-400"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      title="Histórico de Prompts"
+    >
+      <div className="max-h-[60vh] overflow-y-auto -mx-6 -my-6">
+        <div className="p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -134,17 +124,9 @@ const PromptHistory: React.FC<PromptHistoryProps> = ({
             </div>
           )}
         </div>
-
-        <div className="p-6 border-t border-slate-200 dark:border-slate-700">
-          <button
-            onClick={onClose}
-            className="w-full px-6 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-900 dark:text-white font-black rounded-xl transition-colors"
-          >
-            Fechar
-          </button>
         </div>
       </div>
-    </div>
+    </BaseModal>
   );
 };
 

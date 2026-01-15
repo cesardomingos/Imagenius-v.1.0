@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { PricingPlan } from '../types';
 import { startStripeCheckout } from '../services/stripeService';
+import BaseModal from './BaseModal';
 
 interface PricingPageProps {
   isOpen: boolean;
@@ -44,36 +45,27 @@ const PricingPage: React.FC<PricingPageProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   const popularPlan = plans.find(p => p.popular);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/95 backdrop-blur-sm">
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-7xl w-full border border-slate-200 dark:border-slate-700 animate-in zoom-in duration-200">
-          {/* Header */}
-          <div className="p-6 md:p-8 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2">
-                Escolha seu Plano
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 font-bold">
-                Créditos que nunca expiram. Use quando quiser.
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-500 dark:text-slate-400"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Pricing Cards */}
-          <div className="p-6 md:p-8">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="xl"
+      title={
+        <div>
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2">
+            Escolha seu Plano
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 font-bold">
+            Créditos que nunca expiram. Use quando quiser.
+          </p>
+        </div>
+      }
+    >
+      {/* Pricing Cards */}
+      <div className="-mx-6 -my-6">
+        <div className="p-6 md:p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {plans.map((plan) => {
                 const isSelected = selectedPlan?.id === plan.id;
@@ -217,7 +209,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </BaseModal>
   );
 };
 

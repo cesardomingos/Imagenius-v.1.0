@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import BaseModal from './BaseModal';
 
 interface ImageComparisonProps {
   originalUrl: string;
@@ -29,23 +30,12 @@ const ImageComparison: React.FC<ImageComparisonProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-6xl w-full border border-slate-200 dark:border-slate-700 animate-in zoom-in duration-200">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white">
-            Comparação: Original vs Gerado
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-500 dark:text-slate-400"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="p-6">
+    <BaseModal
+      isOpen={true}
+      onClose={onClose}
+      size="xl"
+      title="Comparação: Original vs Gerado"
+    >
           <div className="relative w-full aspect-video bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700">
             {/* Imagem Original (fundo) */}
             <div className="absolute inset-0">
@@ -133,8 +123,7 @@ const ImageComparison: React.FC<ImageComparisonProps> = ({
             Arraste a linha divisória ou use os botões para comparar as imagens
           </p>
         </div>
-      </div>
-    </div>
+    </BaseModal>
   );
 };
 

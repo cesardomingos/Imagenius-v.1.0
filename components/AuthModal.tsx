@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { signIn, signUp, resetPassword } from '../services/supabaseService';
+import { signIn, signUp, resetPassword, resendConfirmationEmail } from '../services/supabaseService';
 import { UserProfile } from '../types';
 import { getReferralCodeFromUrl } from '../services/referralService';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
+import BaseModal from './BaseModal';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetPasswordSent, setResetPasswordSent] = useState(false);
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const [confirmationEmailSent, setConfirmationEmailSent] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
 
   // Capturar código de referência da URL quando o modal abrir
@@ -62,7 +65,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
         : await signUp(email, password, privacyOptIn, referralCode || undefined);
 
       if (result.error) {
-        setError(result.error);
+        // No signup, verificar se o erro é porque já existe uma conta (possivelmente não confirmada)
+        if (mode === 'signup' && result.error === 'EMAIL_ALREADY_EXISTS') {
+          // Mostrar opção de reenviar email de confirmação
+          setShowResendConfirmation(true);
+          setError('');
+        } else {
+          // Para login ou outros erros, mostrar erro normalmente
+          setError(result.error);
+        }
         setIsLoading(false);
         return;
       }
@@ -70,6 +81,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
       if (result.user) {
         onAuthSuccess(result.user);
         handleClose();
+      } else if (mode === 'signup') {
+        // Após cadastro bem-sucedido, mostrar mensagem de confirmação
+        setError('');
+        setShowResendConfirmation(true);
+        setConfirmationEmailSent(true);
       }
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer autenticação. Tente novamente.');
@@ -95,6 +111,35 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
     setConfirmPassword('');
     setShowForgotPassword(false);
     setResetPasswordSent(false);
+    setShowResendConfirmation(false);
+    setConfirmationEmailSent(false);
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      setError('Por favor, informe seu email');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const result = await resendConfirmationEmail(email);
+      
+      if (result.error) {
+        setError(result.error);
+        setIsLoading(false);
+        return;
+      }
+
+      setConfirmationEmailSent(true);
+      setError('');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao reenviar email de confirmação. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -120,35 +165,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6">
-      <div 
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
-        onClick={handleClose}
-      />
-      
-      <div className="relative bg-white dark:bg-slate-800 w-full max-w-md max-h-[90vh] rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col my-auto">
-        {/* Header */}
-        <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6 sm:p-8">
-          <button
-            onClick={handleClose}
-            className="absolute top-4 right-4 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-xl sm:rounded-2xl transition-colors"
-          >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-black text-white">
-              {mode === 'login' ? 'Bem-vindo de volta!' : 'Crie sua conta'}
-            </h2>
-            <p className="text-white/90 text-sm">
-              {mode === 'login' 
-                ? 'Entre para continuar criando' 
-                : 'Comece sua jornada criativa agora'}
-            </p>
-          </div>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      size="md"
+      showCloseButton={false}
+      className="p-0"
+    >
+      {/* Header Customizado */}
+      <div className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6 sm:p-8 -m-6 mb-0">
+        <div className="space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-black text-white">
+            {mode === 'login' ? 'Bem-vindo de volta!' : 'Crie sua conta'}
+          </h2>
+          <p className="text-white/90 text-sm">
+            {mode === 'login' 
+              ? 'Entre para continuar criando' 
+              : 'Comece sua jornada criativa agora'}
+          </p>
         </div>
+      </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
@@ -264,8 +300,68 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
               </div>
             )}
 
+            {/* Resend Confirmation Email */}
+            {showResendConfirmation && (
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-700 rounded-xl space-y-3">
+                {confirmationEmailSent ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">
+                      ✓ Email de confirmação enviado!
+                    </p>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                      Verifique sua caixa de entrada e spam. Clique no link de confirmação para ativar sua conta.
+                    </p>
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2">
+                      Não recebeu? Aguarde alguns minutos e tente novamente.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowResendConfirmation(false);
+                        setConfirmationEmailSent(false);
+                        setError('');
+                        if (mode === 'signup') {
+                          setMode('login');
+                        }
+                      }}
+                      className="w-full mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all"
+                    >
+                      {mode === 'signup' ? 'Fazer Login' : 'Voltar ao Login'}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">
+                      Conta já existe
+                    </p>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-300">
+                      Já existe uma conta com este email. Se você ainda não confirmou seu email, clique no botão abaixo para receber um novo email de confirmação.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleResendConfirmation}
+                      disabled={isLoading || !email}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? 'Enviando...' : 'Reenviar Email de Confirmação'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowResendConfirmation(false);
+                        setError('');
+                      }}
+                      className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-bold text-sm transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Forgot Password Form */}
-            {showForgotPassword && (
+            {showForgotPassword && !showResendConfirmation && (
               <div className="p-4 bg-indigo-50 border-2 border-indigo-200 rounded-xl space-y-3">
                 {resetPasswordSent ? (
                   <div className="space-y-2">
@@ -319,7 +415,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
             )}
 
             {/* Submit Button */}
-            {!showForgotPassword && (
+            {!showForgotPassword && !showResendConfirmation && (
               <button
                 type="submit"
                 disabled={isLoading}
@@ -367,7 +463,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
             </div>
           </div>
         </div>
-      </div>
 
       {/* Privacy Policy Modal */}
       {showPrivacyPolicy && (
@@ -378,7 +473,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuccess })
       {showTermsOfService && (
         <TermsOfService onClose={() => setShowTermsOfService(false)} />
       )}
-    </div>
+    </BaseModal>
   );
 };
 

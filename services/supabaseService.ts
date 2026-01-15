@@ -2,6 +2,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { UserProfile } from "../types";
 import { CURRENT_POLICY_VERSION } from "../config/privacyPolicy";
+import { setItem, getItem, removeItem, setSecureItem, getSecureItem, removeSecureItem } from "../utils/storage";
 
 // Criar cliente Supabase (usa variáveis de ambiente ou fallback para mock)
 const getSupabaseClient = (): SupabaseClient | null => {
@@ -82,9 +83,9 @@ export async function signIn(email: string, password: string): Promise<{ user: U
           })
         };
 
-        // Salvar no localStorage para cache
-        localStorage.setItem('genius_user', JSON.stringify(userProfile));
-        localStorage.setItem('genius_credits', (profile?.credits || 15).toString());
+        // Salvar dados sensíveis em sessionStorage, não sensíveis em localStorage
+        setSecureItem('genius_user', JSON.stringify(userProfile));
+        setItem('genius_credits', (profile?.credits || 15).toString());
 
         return { user: userProfile, error: null };
       }
@@ -97,8 +98,8 @@ export async function signIn(email: string, password: string): Promise<{ user: U
       email,
       credits: 15
     };
-    localStorage.setItem('genius_user', JSON.stringify(mockUser));
-    localStorage.setItem('genius_credits', '15');
+    setSecureItem('genius_user', JSON.stringify(mockUser));
+    setItem('genius_credits', '15');
     return { user: mockUser, error: null };
   } catch (error: any) {
     return { user: null, error: error.message || 'Erro ao fazer login' };
@@ -130,15 +131,36 @@ export async function signUp(
       }
 
       // Cadastro real com Supabase
+      // Usar URL de produção se disponível, senão usar window.location.origin
+      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const redirectTo = `${siteUrl}${window.location.pathname}`;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userMetadata
+          data: userMetadata,
+          emailRedirectTo: redirectTo
         }
       });
 
       if (error) {
+        // Verificar se o erro indica que o usuário já existe
+        // O Supabase retorna erro quando tenta cadastrar email já existente
+        const errorLower = error.message.toLowerCase();
+        const isUserExists = 
+          errorLower.includes('user already registered') ||
+          errorLower.includes('usuário já registrado') ||
+          errorLower.includes('already registered') ||
+          errorLower.includes('email address is already registered') ||
+          error.code === 'signup_disabled';
+        
+        // Se for erro de usuário já existente, pode ser que não esteja confirmado
+        // Retornar erro especial para que o frontend possa oferecer reenvio
+        if (isUserExists) {
+          return { user: null, error: 'EMAIL_ALREADY_EXISTS' };
+        }
+        
         return { user: null, error: error.message };
       }
 
@@ -183,9 +205,9 @@ export async function signUp(
           })
         };
 
-        // Salvar no localStorage para cache
-        localStorage.setItem('genius_user', JSON.stringify(userProfile));
-        localStorage.setItem('genius_credits', (profile?.credits || 15).toString());
+        // Salvar dados sensíveis em sessionStorage, não sensíveis em localStorage
+        setSecureItem('genius_user', JSON.stringify(userProfile));
+        setItem('genius_credits', (profile?.credits || 15).toString());
 
         return { user: userProfile, error: null };
       }
@@ -198,8 +220,8 @@ export async function signUp(
       email,
       credits: 15
     };
-    localStorage.setItem('genius_user', JSON.stringify(mockUser));
-    localStorage.setItem('genius_credits', '15');
+    setSecureItem('genius_user', JSON.stringify(mockUser));
+    setItem('genius_credits', '15');
     return { user: mockUser, error: null };
   } catch (error: any) {
     return { user: null, error: error.message || 'Erro ao criar conta' };
@@ -213,8 +235,8 @@ export async function signOut(): Promise<void> {
   if (supabase) {
     await supabase.auth.signOut();
   }
-  localStorage.removeItem('genius_user');
-  localStorage.removeItem('genius_credits');
+  removeSecureItem('genius_user');
+  removeItem('genius_credits');
 }
 
 /**
@@ -257,8 +279,8 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
       };
 
       // Atualizar cache
-      localStorage.setItem('genius_user', JSON.stringify(userProfile));
-      localStorage.setItem('genius_credits', (profile?.credits || 5).toString());
+      setSecureItem('genius_user', JSON.stringify(userProfile));
+      setItem('genius_credits', (profile?.credits || 5).toString());
 
       return userProfile;
     } catch (error) {
@@ -268,7 +290,7 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   }
 
   // Fallback para mock quando Supabase não está configurado
-  const saved = localStorage.getItem('genius_user');
+  const saved = getSecureItem('genius_user');
   return saved ? JSON.parse(saved) : null;
 }
 
@@ -289,7 +311,7 @@ export async function fetchUserCredits(): Promise<number> {
 
         if (!error && profile) {
           // Atualizar cache
-          localStorage.setItem('genius_credits', profile.credits.toString());
+          setItem('genius_credits', profile.credits.toString());
           return profile.credits;
         }
       } catch (error) {
@@ -298,12 +320,12 @@ export async function fetchUserCredits(): Promise<number> {
     }
 
     // Fallback para cache ou valor do usuário
-    const saved = localStorage.getItem('genius_credits');
+    const saved = getItem('genius_credits');
     return saved ? parseInt(saved) : user.credits;
   }
   
   // Usuário não autenticado - retornar créditos padrão
-  const saved = localStorage.getItem('genius_credits');
+  const saved = getItem('genius_credits');
   return saved ? parseInt(saved) : 15;
 }
 
@@ -338,7 +360,7 @@ export async function deductCredits(amount: number): Promise<boolean> {
   }
 
   // Atualizar cache
-  localStorage.setItem('genius_credits', nextValue.toString());
+  setItem('genius_credits', nextValue.toString());
   return true;
 }
 
@@ -459,7 +481,7 @@ export async function checkAndUpdateTransactionStatus(): Promise<{ updated: bool
       // Mas vamos garantir que a UI está sincronizada
       if (dbCredits !== currentCredits) {
         // Atualizar cache local
-        localStorage.setItem('genius_credits', dbCredits.toString());
+        setItem('genius_credits', dbCredits.toString());
         return { updated: true, creditsAdded: creditsToAdd, transaction };
       }
       
@@ -664,6 +686,45 @@ export async function updateUserProfile(data: {
     return { success: true };
   } catch (error: any) {
     console.error('Erro ao atualizar perfil:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Reenvia email de confirmação de conta
+ */
+export async function resendConfirmationEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase não configurado' };
+    }
+
+    if (!email) {
+      return { success: false, error: 'Email é obrigatório' };
+    }
+
+    // Usar URL de produção se disponível, senão usar window.location.origin
+    const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+    const redirectTo = `${siteUrl}${window.location.pathname}`;
+
+    // Reenviar email de confirmação
+    // O método resend do Supabase aceita type e email, e pode incluir options
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: redirectTo
+      }
+    });
+
+    if (error) {
+      console.error('Erro ao reenviar email de confirmação:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao reenviar email de confirmação:', error);
     return { success: false, error: error.message };
   }
 }

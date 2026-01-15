@@ -66,7 +66,7 @@ const GenerationPreview: React.FC<GenerationPreviewProps> = ({
               </p>
             </div>
           </div>
-          <div className="relative rounded-2xl overflow-hidden border-2 border-green-200 dark:border-green-700 shadow-lg">
+          <div className="relative rounded-2xl overflow-hidden border-2 border-green-200 dark:border-green-700 shadow-lg bg-slate-100 dark:bg-slate-900">
             <img
               src={`data:${mainImage.mimeType};base64,${mainImage.data}`}
               alt="Preview"
@@ -81,6 +81,17 @@ const GenerationPreview: React.FC<GenerationPreviewProps> = ({
             </div>
             <div className="absolute top-4 right-4 bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-lg">
               PREVIEW
+            </div>
+            {/* Indicador de que é uma simulação */}
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm opacity-0 hover:opacity-100 transition-opacity">
+              <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-xl border-2 border-indigo-500">
+                <p className="text-sm font-black text-slate-900 dark:text-white text-center">
+                  Preview Simulado
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">
+                  O resultado real pode variar
+                </p>
+              </div>
             </div>
           </div>
         </div>

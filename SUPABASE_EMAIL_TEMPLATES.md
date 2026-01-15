@@ -158,7 +158,7 @@ Redefinir sua senha - Imagenius
       </div>
       
       <div class="button-container">
-        <a href="{{ .ConfirmationURL }}" class="button">Redefinir Senha</a>
+        <a href="{{ .RedirectTo }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery" class="button">Redefinir Senha</a>
       </div>
       
       <div class="warning">
@@ -643,12 +643,49 @@ Os templates do Supabase suportam as seguintes variáveis:
 
 ---
 
+## Configuração de URL de Redirecionamento
+
+### Problema: Links redirecionando para localhost
+
+Se os links de confirmação estão redirecionando para `localhost` ao invés da URL de produção, você precisa:
+
+#### 1. Configurar no Supabase Dashboard
+
+1. Acesse **Authentication** > **URL Configuration**
+2. Configure o campo **Site URL** com sua URL de produção:
+   - Exemplo: `https://seu-dominio.com` ou `https://imagenius.vercel.app`
+3. Adicione sua URL de produção em **Redirect URLs**:
+   - Exemplo: `https://seu-dominio.com/**`
+   - Isso permite que o Supabase redirecione para qualquer página do seu site
+
+#### 2. Configurar Variável de Ambiente (Opcional)
+
+Para maior controle, você pode criar uma variável de ambiente `VITE_SITE_URL` no seu projeto:
+
+```env
+VITE_SITE_URL=https://seu-dominio.com
+```
+
+O código já está configurado para usar essa variável se disponível, caso contrário usa `window.location.origin`.
+
+#### 3. Verificar Configuração no Código
+
+O código em `services/supabaseService.ts` já está configurado para usar:
+- `VITE_SITE_URL` (se disponível)
+- `window.location.origin` (fallback)
+
+Isso garante que o `emailRedirectTo` sempre aponte para a URL correta.
+
+---
+
 ## Próximos Passos
 
 Após configurar os templates:
 
-1. Teste o fluxo de reset de senha
-2. Verifique se os emails estão chegando corretamente
-3. Ajuste o design se necessário
-4. Configure o remetente (From Address) nas configurações de email do Supabase
+1. **Configure a Site URL no Supabase Dashboard** (Authentication > URL Configuration)
+2. **Adicione Redirect URLs** permitidas
+3. Teste o fluxo de cadastro e confirmação de email
+4. Verifique se os emails estão chegando corretamente
+5. Ajuste o design se necessário
+6. Configure o remetente (From Address) nas configurações de email do Supabase
 

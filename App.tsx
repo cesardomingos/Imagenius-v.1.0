@@ -19,6 +19,7 @@ import OfflineBanner from './components/OfflineBanner';
 import ConfirmationModal from './components/ConfirmationModal';
 import SocialProofSection from './components/SocialProofSection';
 import SuccessStories from './components/SuccessStories';
+import GenerationPreview from './components/GenerationPreview';
 import PromptHistory from './components/PromptHistory';
 import ImageComparison from './components/ImageComparison';
 import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
@@ -26,6 +27,7 @@ import Tooltip from './components/Tooltip';
 import { useKeyboardShortcuts, useKeyboardHelp, type KeyboardShortcut } from './hooks/useKeyboardShortcuts';
 import { savePromptToHistory } from './services/promptHistoryService';
 import { useNetworkStatus } from './utils/networkStatus';
+import { migrateSensitiveData } from './utils/storage';
 import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
@@ -234,6 +236,11 @@ const App: React.FC = () => {
       console.error('Erro ao carregar histórico de artes:', error);
     }
   }, [galleryPageSize]);
+
+  // Migrar dados sensíveis para sessionStorage na inicialização
+  useEffect(() => {
+    migrateSensitiveData();
+  }, []);
 
   // Carrega usuário, créditos e histórico de artes iniciais
   useEffect(() => {
@@ -811,9 +818,10 @@ const App: React.FC = () => {
         }}
         hasNewAchievement={hasNewAchievement}
         onOpenAbout={() => setIsAboutOpen(true)}
+        onOpenTutorial={() => setIsTutorialOpen(true)}
       />
       
-      <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+      <main className="flex-grow container mx-auto px-4 py-12 pb-24 md:pb-12 max-w-4xl">
         {isStoreOpen && (
           <PricingModal 
             onClose={() => setIsStoreOpen(false)} 

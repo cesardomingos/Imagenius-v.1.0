@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { PricingPlan } from '../types';
+import BaseModal from './BaseModal';
 
 interface PricingModalProps {
   onClose: () => void;
@@ -80,18 +81,15 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-10">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose}></div>
-      
-      <div className="relative bg-white dark:bg-slate-800 w-full max-w-5xl max-h-[90vh] rounded-2xl sm:rounded-[2.5rem] lg:rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 flex flex-col my-auto">
-        {/* Botão de fechar - responsivo */}
-        <div className="absolute top-3 right-3 sm:top-6 sm:right-6 lg:top-8 lg:right-8 z-10">
-           <button onClick={onClose} className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-slate-100 dark:bg-slate-700 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 rounded-xl sm:rounded-2xl transition-all">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>
-           </button>
-        </div>
+    <BaseModal
+      isOpen={true}
+      onClose={onClose}
+      size="xl"
+      showCloseButton={true}
+      className="p-0"
+    >
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
           {/* Banner Lateral */}
           <div className="lg:col-span-4 bg-slate-900 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] sm:min-h-[300px] lg:min-h-auto">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
@@ -120,8 +118,8 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
             </div>
           </div>
 
-          {/* Opções de Planos */}
-          <div className="lg:col-span-8 p-4 sm:p-6 md:p-8 lg:p-14 bg-white dark:bg-slate-800 overflow-y-auto">
+        {/* Opções de Planos */}
+        <div className="lg:col-span-8 p-4 sm:p-6 md:p-8 lg:p-14 bg-white dark:bg-slate-800 overflow-y-auto">
             {/* Planos Avulsos */}
             <div className="mb-8">
               <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-4">Pacotes de Créditos</h3>
@@ -291,8 +289,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </BaseModal>
   );
 };
 

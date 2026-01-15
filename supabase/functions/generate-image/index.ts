@@ -1,5 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  logSecurityEvent,
+  extractRequestInfo,
+  createRateLimitEvent,
+  createInvalidOriginEvent,
+  createInvalidMimeEvent,
+  createPromptSanitizedEvent,
+  createInvalidTemplateEvent,
+  createTimeoutEvent,
+  createErrorEvent
+} from "../_shared/securityLogger.ts";
+import { createSanitizedErrorResponse, isProduction } from "../_shared/errorSanitizer.ts";
 import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@1.34.0";
 
 /**
@@ -160,10 +172,17 @@ function sanitizePrompt(prompt: string, userId?: string): string {
 serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
+  const requestInfo = extractRequestInfo(req);
   
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Validar origem e logar se inválida
+  const allowedOrigins = Deno.env.get("ALLOWED_ORIGINS")?.split(",").map(o => o.trim()) || [];
+  if (allowedOrigins.length > 0 && origin && !allowedOrigins.includes(origin)) {
+    await logSecurityEvent(createInvalidOriginEvent(origin, requestInfo.ip, requestInfo.userAgent));
   }
 
   try {

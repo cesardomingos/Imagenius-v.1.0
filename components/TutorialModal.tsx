@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import BaseModal from './BaseModal';
 
 interface TutorialModalProps {
   isOpen: boolean;
@@ -64,33 +65,28 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white">Tutorial: Estética Coerente</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Passo {currentStep + 1} de {steps.length}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleClose}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    <BaseModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      size="lg"
+      title={
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center">
+            <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-          </button>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Tutorial: Estética Coerente</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Passo {currentStep + 1} de {steps.length}</p>
+          </div>
         </div>
+      }
+    >
 
-        {/* Content */}
-        <div className="flex-grow overflow-auto p-6 md:p-8">
+      {/* Content */}
+      <div className="flex-grow overflow-auto -mx-6">
+        <div className="p-6 md:p-8">
           <div className="space-y-6">
             {/* Step Title */}
             <div>
@@ -135,9 +131,10 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Footer with Navigation */}
-        <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+      {/* Footer with Navigation */}
+      <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between -mx-6 -mb-6">
           {/* Progress Indicators */}
           <div className="flex items-center gap-2">
             {steps.map((_, index) => (
@@ -180,8 +177,7 @@ const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </BaseModal>
   );
 };
 

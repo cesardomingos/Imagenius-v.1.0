@@ -1,4 +1,5 @@
 import React from 'react';
+import BaseModal from './BaseModal';
 
 interface UseCase {
   id: string;
@@ -107,34 +108,26 @@ const UseCasesModal: React.FC<UseCasesModalProps> = ({ isOpen, onClose, onSelect
     }
   ];
 
-  if (!isOpen) return null;
-
   const handleUseCaseSelect = (theme: string) => {
     onSelectUseCase(theme);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white">Exemplos de Uso</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Descubra como o Imagenius pode transformar suas ideias</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="xl"
+      title={
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white">Exemplos de Uso</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Descubra como o Imagenius pode transformar suas ideias</p>
         </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+      }
+    >
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto -mx-6 -my-6">
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {useCases.map((useCase) => (
               <div
@@ -172,8 +165,9 @@ const UseCasesModal: React.FC<UseCasesModalProps> = ({ isOpen, onClose, onSelect
             ))}
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </BaseModal>
   );
 };
 

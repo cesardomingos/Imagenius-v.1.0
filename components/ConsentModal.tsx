@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import { updatePrivacyConsent } from '../services/supabaseService';
+import BaseModal from './BaseModal';
 
 interface ConsentModalProps {
   isOpen: boolean;
@@ -21,8 +22,6 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
-  if (!isOpen) return null;
 
   const handleAccept = async () => {
     if (!privacyOptIn) {
@@ -60,31 +59,34 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white">
-                {isPolicyUpdate ? 'Políticas Atualizadas' : 'Consentimento de Privacidade'}
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                {isPolicyUpdate 
-                  ? 'Nossas políticas foram atualizadas. Por favor, revise e aceite os novos termos.'
-                  : 'Precisamos do seu consentimento para continuar'}
-              </p>
-            </div>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onDecline || onAccept}
+      size="md"
+      showCloseButton={false}
+      title={
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white">
+              {isPolicyUpdate ? 'Políticas Atualizadas' : 'Consentimento de Privacidade'}
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+              {isPolicyUpdate 
+                ? 'Nossas políticas foram atualizadas. Por favor, revise e aceite os novos termos.'
+                : 'Precisamos do seu consentimento para continuar'}
+            </p>
           </div>
         </div>
-
-        {/* Content */}
-        <div className="flex-grow overflow-auto p-6 md:p-8">
+      }
+    >
+      {/* Content */}
+      <div className="flex-grow overflow-auto -mx-6 -my-6">
+        <div className="p-6 md:p-8">
           <div className="space-y-6">
             {isPolicyUpdate && (
               <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
@@ -160,9 +162,11 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
             </div>
           </div>
         </div>
+        </div>
+      </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-slate-200 flex items-center justify-between gap-4">
+      {/* Footer */}
+      <div className="p-6 border-t border-slate-200 flex items-center justify-between gap-4 -mx-6 -mb-6">
           {onDecline && (
             <button
               onClick={handleDecline}
@@ -191,7 +195,6 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
             )}
           </button>
         </div>
-      </div>
 
       {/* Privacy Policy Modal */}
       {showPrivacyPolicy && (
@@ -202,7 +205,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
       {showTermsOfService && (
         <TermsOfService onClose={() => setShowTermsOfService(false)} />
       )}
-    </div>
+    </BaseModal>
   );
 };
 
