@@ -69,7 +69,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-4 pt-16 md:pt-4"
       onClick={(e) => {
         // Fechar ao clicar no overlay (fora do modal)
         if (e.target === e.currentTarget) {
@@ -83,7 +83,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
       {/* Modal Content */}
       <div
         className={`
-          relative w-full ${sizeClasses[size]} max-h-[90vh] 
+          relative w-full ${sizeClasses[size]} max-h-[calc(100vh-4rem)] md:max-h-[90vh]
           bg-white dark:bg-slate-900 
           rounded-2xl md:rounded-3xl 
           shadow-2xl 
@@ -124,10 +124,14 @@ const BaseModal: React.FC<BaseModalProps> = ({
         )}
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-3 sm:p-4 md:p-6">
-            {children}
-          </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain min-h-0">
+          {className?.includes('p-0') ? (
+            children
+          ) : (
+            <div className="p-3 sm:p-4 md:p-6">
+              {children}
+            </div>
+          )}
         </div>
       </div>
     </div>,

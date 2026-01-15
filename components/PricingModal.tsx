@@ -86,12 +86,12 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
       onClose={onClose}
       size="xl"
       showCloseButton={true}
-      className="p-0"
+      className="p-0 flex flex-col"
     >
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden h-full min-h-0">
           {/* Banner Lateral */}
-          <div className="lg:col-span-4 bg-slate-900 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] sm:min-h-[300px] lg:min-h-auto">
+          <div className="lg:col-span-4 bg-slate-900 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] sm:min-h-[300px] lg:min-h-full lg:h-full">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
             
             <div className="relative z-10 space-y-4 sm:space-y-6">
