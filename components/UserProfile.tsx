@@ -8,6 +8,7 @@ import { UserAchievement, AchievementLevel, ACHIEVEMENTS } from '../types/achiev
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import AchievementsGallery from './AchievementsGallery';
+import { ProfileSkeleton } from './SkeletonLoader';
 
 interface UserProfileProps {
   isOpen: boolean;
@@ -282,9 +283,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
         {/* Content */}
         <div className="flex-grow overflow-auto p-6 md:p-8">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-            </div>
+            <ProfileSkeleton />
           ) : activeTab === 'achievements' ? (
             <AchievementsGallery
               isOpen={true}

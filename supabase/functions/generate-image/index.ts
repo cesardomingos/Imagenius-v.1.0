@@ -12,6 +12,7 @@ import {
   createErrorEvent
 } from "../_shared/securityLogger.ts";
 import { createSanitizedErrorResponse, isProduction } from "../_shared/errorSanitizer.ts";
+import { checkRateLimitPersistent } from "../_shared/rateLimiter.ts";
 import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@1.34.0";
 
 /**
@@ -40,27 +41,7 @@ interface RequestBody {
   mode: 'single' | 'studio';
 }
 
-// Rate limiting simples em memória (em produção, use Redis)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minuto
-const MAX_REQUESTS_PER_MINUTE = 10;
-
-function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
-  const now = Date.now();
-  const userLimit = rateLimitMap.get(userId);
-
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return { allowed: true, remaining: MAX_REQUESTS_PER_MINUTE - 1 };
-  }
-
-  if (userLimit.count >= MAX_REQUESTS_PER_MINUTE) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  userLimit.count++;
-  return { allowed: true, remaining: MAX_REQUESTS_PER_MINUTE - userLimit.count };
-}
+const ENDPOINT_NAME = 'generate-image';
 
 function validateImageSize(base64Data: string, maxSizeMB: number = 10): boolean {
   const sizeInBytes = (base64Data.length * 3) / 4;
@@ -116,8 +97,14 @@ function validateMimeTypeBackend(base64Data: string, mimeType: string): boolean 
 
 /**
  * Sanitiza prompt usando validação de comprimento e moderação de conteúdo
+ * Retorna o prompt sanitizado e informações sobre modificações
  */
-function sanitizePrompt(prompt: string, userId?: string): string {
+async function sanitizePrompt(
+  prompt: string,
+  userId: string | undefined,
+  ip: string | undefined,
+  userAgent: string | undefined
+): Promise<{ sanitized: string; wasModified: boolean }> {
   const MAX_PROMPT_LENGTH = 2000;
   
   // Validar comprimento
@@ -140,10 +127,15 @@ function sanitizePrompt(prompt: string, userId?: string): string {
   
   let sanitized = prompt.trim();
   let wasModified = false;
+  const removedContent: string[] = [];
 
   // Aplicar filtros
   for (const pattern of blockedPatterns) {
     if (pattern.test(sanitized)) {
+      const matches = prompt.match(pattern);
+      if (matches) {
+        removedContent.push(...matches.slice(0, 3));
+      }
       sanitized = sanitized.replace(pattern, '[conteúdo filtrado]');
       wasModified = true;
     }
@@ -157,8 +149,16 @@ function sanitizePrompt(prompt: string, userId?: string): string {
     wasModified = true;
   }
 
-  // Logar tentativas de bypass
-  if (wasModified && userId) {
+  // Logar tentativas de bypass usando security logger
+  if (wasModified) {
+    await logSecurityEvent(createPromptSanitizedEvent(
+      userId,
+      ip,
+      prompt.length,
+      sanitized.length,
+      removedContent
+    ));
+    
     console.warn('[Content Moderation] Prompt modificado', {
       userId,
       originalLength: prompt.length,
@@ -166,7 +166,7 @@ function sanitizePrompt(prompt: string, userId?: string): string {
     });
   }
   
-  return sanitized.trim();
+  return { sanitized: sanitized.trim(), wasModified };
 }
 
 serve(async (req) => {
@@ -225,7 +225,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
 
     // Rate limiting persistente
-    const rateLimit = await checkRateLimit(supabase, user.id, ENDPOINT_NAME);
+    const rateLimit = await checkRateLimitPersistent(supabase, user.id, ENDPOINT_NAME);
     if (!rateLimit.allowed) {
       return new Response(
         JSON.stringify({ 
@@ -279,10 +279,16 @@ serve(async (req) => {
       }
     }
 
-    // Sanitizar prompt com validação de comprimento
+    // Sanitizar prompt com validação de comprimento e logging de segurança
     let sanitizedPrompt: string;
     try {
-      sanitizedPrompt = sanitizePrompt(prompt, user.id);
+      const sanitizationResult = await sanitizePrompt(
+        prompt,
+        user.id,
+        requestInfo.ip,
+        requestInfo.userAgent
+      );
+      sanitizedPrompt = sanitizationResult.sanitized;
     } catch (error: any) {
       return new Response(
         JSON.stringify({ error: error.message || "Prompt inválido" }),

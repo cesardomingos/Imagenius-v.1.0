@@ -90,9 +90,20 @@ serve(async (req) => {
       );
     }
 
-    // Parse request body
+    // Validar token CSRF (básico - verifica se foi enviado)
+    // Nota: Validação completa requereria armazenar tokens no servidor
+    const csrfTokenHeader = req.headers.get("X-CSRF-Token");
     const body = await req.json();
-    const { plan_id, amount, currency, user_id, plan_type, interval, pix_bonus } = body;
+    const { plan_id, amount, currency, user_id, plan_type, interval, pix_bonus, csrf_token } = body;
+    
+    // Verificar se token CSRF foi enviado (validação básica)
+    const csrfToken = csrfTokenHeader || csrf_token;
+    if (!csrfToken || csrfToken.length < 32) {
+      return new Response(
+        JSON.stringify({ error: "Token CSRF não fornecido ou inválido" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!plan_id || !PLAN_CREDITS[plan_id]) {
       return new Response(

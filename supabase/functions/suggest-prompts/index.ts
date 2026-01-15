@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimitPersistent } from "../_shared/rateLimiter.ts";
 import { GoogleGenAI, Type } from "https://esm.sh/@google/genai@1.34.0";
 
 /**
@@ -28,27 +29,7 @@ interface RequestBody {
   templateId?: string;
 }
 
-// Rate limiting simples em memória
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minuto
-const MAX_REQUESTS_PER_MINUTE = 5;
-
-function checkRateLimit(userId: string): { allowed: boolean; remaining: number } {
-  const now = Date.now();
-  const userLimit = rateLimitMap.get(userId);
-
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return { allowed: true, remaining: MAX_REQUESTS_PER_MINUTE - 1 };
-  }
-
-  if (userLimit.count >= MAX_REQUESTS_PER_MINUTE) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  userLimit.count++;
-  return { allowed: true, remaining: MAX_REQUESTS_PER_MINUTE - userLimit.count };
-}
+const ENDPOINT_NAME = 'suggest-prompts';
 
 function validateImageSize(base64Data: string, maxSizeMB: number = 10): boolean {
   const sizeInBytes = (base64Data.length * 3) / 4;
@@ -150,7 +131,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey);
 
     // Rate limiting persistente
-    const rateLimit = await checkRateLimit(supabase, user.id, ENDPOINT_NAME);
+    const rateLimit = await checkRateLimitPersistent(supabase, user.id, ENDPOINT_NAME);
     if (!rateLimit.allowed) {
       return new Response(
         JSON.stringify({ 

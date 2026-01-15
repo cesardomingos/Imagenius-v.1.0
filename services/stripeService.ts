@@ -3,6 +3,7 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { PricingPlan } from "../types";
 import { getCurrentUser } from './supabaseService';
 import { createClient } from '@supabase/supabase-js';
+import { getCSRFToken, validateCSRFToken, refreshCSRFToken } from '../utils/csrf';
 
 // Função helper para obter o cliente Supabase compartilhado
 // Isso garante que usamos a mesma instância que foi usada para autenticação
@@ -174,12 +175,19 @@ async function createCheckoutSession(
         user_id: userId
       });
 
+      // Obter ou gerar token CSRF
+      let csrfToken = getCSRFToken();
+      if (!csrfToken) {
+        csrfToken = refreshCSRFToken();
+      }
+
       const response = await fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': supabaseAnonKey, // Adicionar apikey para Edge Functions
+          'X-CSRF-Token': csrfToken, // Token CSRF
         },
         body: JSON.stringify({
           plan_id: plan.id,
@@ -189,6 +197,7 @@ async function createCheckoutSession(
           plan_type: plan.type || 'one-time',
           interval: plan.interval || null,
           pix_bonus: plan.pixBonus || 0,
+          csrf_token: csrfToken, // Token CSRF no body também
         }),
       });
 

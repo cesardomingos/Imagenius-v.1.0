@@ -58,12 +58,63 @@ export async function validateMimeType(file: File): Promise<boolean> {
 }
 
 /**
+ * Remove metadados EXIF de uma imagem redesenhand-a em um canvas
+ * Isso remove automaticamente todos os metadados EXIF, GPS, etc.
+ */
+export function removeExifMetadata(
+  base64Data: string,
+  mimeType: string = 'image/png'
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      // Criar canvas com as mesmas dimensões da imagem
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        reject(new Error('Não foi possível criar contexto do canvas'));
+        return;
+      }
+
+      // Desenhar imagem no canvas (isso remove todos os metadados)
+      ctx.drawImage(img, 0, 0);
+      
+      // Converter para o formato desejado (PNG por padrão remove EXIF)
+      // Usar o mimeType original se for PNG, caso contrário usar PNG para garantir remoção
+      const outputMimeType = mimeType === 'image/png' ? 'image/png' : 'image/png';
+      const cleanedBase64 = canvas.toDataURL(outputMimeType);
+      
+      // Remover o prefixo data:image/png;base64,
+      const base64DataOnly = cleanedBase64.split(',')[1];
+      resolve(base64DataOnly);
+    };
+
+    img.onerror = () => {
+      reject(new Error('Erro ao carregar imagem para remoção de EXIF'));
+    };
+
+    // Converter base64 para data URL para o Image
+    // Detectar mimeType do base64 ou usar o fornecido
+    const dataUrl = base64Data.includes(',') 
+      ? base64Data 
+      : `data:${mimeType};base64,${base64Data}`;
+    img.src = dataUrl;
+  });
+}
+
+/**
  * Redimensiona uma imagem se necessário
+ * Também remove metadados EXIF e aplica compressão de qualidade
  */
 export function resizeImageIfNeeded(
   base64Data: string,
   maxWidth: number = 2048,
-  maxHeight: number = 2048
+  maxHeight: number = 2048,
+  removeExif: boolean = true,
+  quality: number = 0.85
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -71,18 +122,20 @@ export function resizeImageIfNeeded(
       let width = img.width;
       let height = img.height;
 
-      // Se a imagem já está dentro dos limites, retornar original
-      if (width <= maxWidth && height <= maxHeight) {
+      // Se a imagem já está dentro dos limites e não precisa remover EXIF, retornar original
+      if (width <= maxWidth && height <= maxHeight && !removeExif) {
         resolve(base64Data);
         return;
       }
 
-      // Calcular novas dimensões mantendo aspect ratio
-      const ratio = Math.min(maxWidth / width, maxHeight / height);
-      width = Math.floor(width * ratio);
-      height = Math.floor(height * ratio);
+      // Calcular novas dimensões mantendo aspect ratio (se necessário)
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+      }
 
-      // Criar canvas para redimensionar
+      // Criar canvas para redimensionar, remover EXIF e comprimir
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -93,12 +146,22 @@ export function resizeImageIfNeeded(
         return;
       }
 
+      // Melhorar qualidade de renderização
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
       ctx.drawImage(img, 0, 0, width, height);
       
-      // Converter de volta para base64
-      const resizedBase64 = canvas.toDataURL('image/png');
-      // Remover o prefixo data:image/png;base64,
-      const base64DataOnly = resizedBase64.split(',')[1];
+      // Determinar formato de saída baseado no tamanho original
+      // JPEG com qualidade para imagens grandes, PNG para pequenas
+      const useJPEG = (width * height) > 500000; // ~700x700 pixels
+      const mimeType = useJPEG ? 'image/jpeg' : 'image/png';
+      const outputQuality = useJPEG ? quality : undefined; // PNG não usa quality
+      
+      // Converter de volta para base64 com compressão
+      const compressedBase64 = canvas.toDataURL(mimeType, outputQuality);
+      // Remover o prefixo data:image/...;base64,
+      const base64DataOnly = compressedBase64.split(',')[1];
       resolve(base64DataOnly);
     };
 
@@ -107,7 +170,10 @@ export function resizeImageIfNeeded(
     };
 
     // Converter base64 para data URL para o Image
-    img.src = `data:image/png;base64,${base64Data}`;
+    const dataUrl = base64Data.includes(',') 
+      ? base64Data 
+      : `data:image/png;base64,${base64Data}`;
+    img.src = dataUrl;
   });
 }
 

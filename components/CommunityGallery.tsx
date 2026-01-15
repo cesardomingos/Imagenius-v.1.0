@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchCommunityArts, toggleLike, CommunityArt as CommunityArtType } from '../services/communityService';
+import { GallerySkeleton } from './SkeletonLoader';
 
 interface CommunityGalleryProps {
   arts?: CommunityArtType[];
@@ -107,25 +108,21 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
     return 'Usuário Anônimo';
   };
 
-  // Empty State
+  // Loading State
   if (loading) {
     return (
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
-            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+            <h3 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               Galeria da <span className="text-genius-gradient">Comunidade</span>
             </h3>
-            <p className="text-sm text-slate-500 font-medium">
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
               Obras compartilhadas por outros gênios da comunidade
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl aspect-square animate-pulse" />
-          ))}
-        </div>
+        <GallerySkeleton count={8} />
       </div>
     );
   }
@@ -213,6 +210,8 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
                   alt={art.prompt}
                   className="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform duration-700"
                   onClick={() => setSelectedArt(art)}
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
                     // Fallback para imagem quebrada
                     (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600?text=Imagem+Indisponível';
@@ -332,6 +331,8 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
                   src={selectedArt.image_url}
                   alt={selectedArt.prompt}
                   className="w-full rounded-2xl shadow-lg border border-slate-200"
+                  loading="eager"
+                  decoding="async"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://via.placeholder.com/800x600?text=Imagem+Indisponível';
                   }}

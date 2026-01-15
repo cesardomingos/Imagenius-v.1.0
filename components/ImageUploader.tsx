@@ -16,6 +16,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [fileSize, setFileSize] = useState<{ original: number; estimated: number } | null>(null);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -23,6 +30,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     setIsValidating(true);
     setPreview(null);
+    setFileSize(null);
+
+    // Calcular tamanho original
+    const originalSize = file.size;
+    
+    // Estimar tamanho após processamento (base64 é ~33% maior, mas PNG comprimido pode ser menor)
+    const estimatedSize = originalSize * 0.8; // Estimativa conservadora
+    setFileSize({ original: originalSize, estimated: estimatedSize });
 
     try {
       // Validar arquivo
@@ -35,6 +50,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         }
         if (fileInputRef.current) fileInputRef.current.value = '';
         setIsValidating(false);
+        setFileSize(null);
         return;
       }
 
@@ -48,8 +64,12 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           // Mostrar preview
           setPreview(result);
           
-          // Redimensionar se necessário
-          base64Data = await resizeImageIfNeeded(base64Data, 2048, 2048);
+          // Redimensionar se necessário (isso também remove EXIF)
+          base64Data = await resizeImageIfNeeded(base64Data, 2048, 2048, true);
+          
+          // Calcular tamanho final aproximado
+          const finalSize = (base64Data.length * 3) / 4; // Base64 para bytes
+          setFileSize({ original: originalSize, estimated: finalSize });
           
           onUpload(base64Data, file.type);
           
@@ -60,6 +80,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           if (onError) {
             onError(errorMsg);
           }
+          setFileSize(null);
         } finally {
           setIsValidating(false);
         }
@@ -70,6 +91,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           onError('Erro ao ler arquivo');
         }
         setIsValidating(false);
+        setFileSize(null);
       };
       
       reader.readAsDataURL(file);
@@ -79,6 +101,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         onError(errorMsg);
       }
       setIsValidating(false);
+      setFileSize(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -95,6 +118,28 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-black px-2 py-1 rounded-lg">
             ✓ Válido
           </div>
+          {fileSize && (
+            <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs font-medium px-3 py-2 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span>Tamanho:</span>
+                <div className="flex items-center gap-2">
+                  {fileSize.original !== fileSize.estimated && (
+                    <span className="text-slate-300 line-through">
+                      {formatFileSize(fileSize.original)}
+                    </span>
+                  )}
+                  <span className="font-black">
+                    {formatFileSize(fileSize.estimated)}
+                  </span>
+                  {fileSize.original > fileSize.estimated && (
+                    <span className="text-green-400 text-[10px]">
+                      ↓ {((1 - fileSize.estimated / fileSize.original) * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

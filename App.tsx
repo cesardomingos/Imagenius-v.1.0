@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { AppStep, GeneratedImage, PromptSuggestion, ProjectMode, ImageData, PricingPlan, TemplateId, getTemplateById } from './types';
 import { suggestPrompts, generateCoherentImage } from './services/geminiService';
 import { fetchUserCredits, deductCredits, checkAndUpdateTransactionStatus, getCurrentUser, signOut, checkPrivacyConsent } from './services/supabaseService';
@@ -7,8 +7,6 @@ import { startStripeCheckout } from './services/stripeService';
 import { saveUserArt, fetchUserArts } from './services/communityService';
 import ImageUploader from './components/ImageUploader';
 import PromptEditor from './components/PromptEditor';
-import Gallery from './components/Gallery';
-import CommunityGallery from './components/CommunityGallery';
 import ComparisonSection from './components/ComparisonSection';
 import TemplateSelector from './components/TemplateSelector';
 import EnhanceRestoreUI, { EnhanceRestoreOptions } from './components/EnhanceRestoreUI';
@@ -28,18 +26,24 @@ import { useKeyboardShortcuts, useKeyboardHelp, type KeyboardShortcut } from './
 import { savePromptToHistory } from './services/promptHistoryService';
 import { useNetworkStatus } from './utils/networkStatus';
 import { migrateSensitiveData } from './utils/storage';
-import PricingModal from './components/PricingModal';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
 import TutorialModal from './components/TutorialModal';
 import OnboardingWizard from './components/OnboardingWizard';
 import UseCasesModal from './components/UseCasesModal';
-import UserProfileModal from './components/UserProfile';
 import ResetPassword from './components/ResetPassword';
 import ConsentModal from './components/ConsentModal';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import AchievementToast from './components/AchievementToast';
+import { GallerySkeleton } from './components/SkeletonLoader';
+
+// Lazy load componentes pesados
+const Gallery = lazy(() => import('./components/Gallery'));
+const CommunityGallery = lazy(() => import('./components/CommunityGallery'));
+const PricingModal = lazy(() => import('./components/PricingModal'));
+const UserProfileModal = lazy(() => import('./components/UserProfile'));
+const AchievementsGallery = lazy(() => import('./components/AchievementsGallery'));
 import { UserProfile, AchievementId } from './types';
 import { AchievementLevel } from './types/achievements';
 import { 
@@ -97,6 +101,10 @@ const App: React.FC = () => {
   // Legal Documents State
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfService, setShowTermsOfService] = useState(false);
+
+  // Confirmation Modal State
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [pendingReset, setPendingReset] = useState<(() => void) | null>(null);
 
   // Check if we're on the reset password page
   const isResetPasswordPage = window.location.pathname === '/reset-password' || 
@@ -828,7 +836,7 @@ const App: React.FC = () => {
     }
   };
 
-  const resetApp = () => {
+  const performReset = () => {
     try {
       // Sempre garantir que volta para a home, mesmo em caso de erro
       // Limpar todos os estados que possam estar travando
@@ -838,11 +846,12 @@ const App: React.FC = () => {
       setThemes(['']);
       setSuggestions([]);
       setGeneratedImages([]);
-        setBatchStatus(null);
-        setLoadingProgress(null);
-        setIsProcessing(false);
+      setBatchStatus(null);
+      setLoadingProgress(null);
+      setIsProcessing(false);
       setLoadingMsg('');
       setToast(null);
+      setPreviewImage(null);
       
       // Fechar todos os modais
       setIsStoreOpen(false);
@@ -854,14 +863,15 @@ const App: React.FC = () => {
       setShowConsentModal(false);
       setShowPrivacyPolicy(false);
       setShowTermsOfService(false);
+      setShowResetConfirm(false);
       
-      // Sempre voltar para a home (step upload)
-      setStep('upload');
+      // Sempre voltar para a home (página inicial)
+      setStep('mode_selection');
     } catch (error) {
       // Em caso de qualquer erro, ainda assim garantir que volta para a home
       console.error('Erro ao resetar aplicação:', error);
       try {
-        setStep('upload');
+        setStep('mode_selection');
         setGeneratedImages([]);
         setIsProcessing(false);
         setToast(null);
@@ -870,6 +880,20 @@ const App: React.FC = () => {
         console.error('Erro crítico ao resetar, recarregando página:', fallbackError);
         window.location.href = '/';
       }
+    }
+  };
+
+  const resetApp = () => {
+    // Verificar se há imagens geradas não salvas
+    const hasUnsavedImages = generatedImages.length > 0 || previewImage !== null;
+    
+    if (hasUnsavedImages) {
+      // Mostrar modal de confirmação
+      setPendingReset(() => performReset);
+      setShowResetConfirm(true);
+    } else {
+      // Resetar diretamente se não houver imagens
+      performReset();
     }
   };
 
@@ -913,11 +937,13 @@ const App: React.FC = () => {
       
       <main className="flex-grow container mx-auto px-2 sm:px-4 py-6 sm:py-8 md:py-12 pb-20 sm:pb-24 md:pb-12 max-w-4xl">
         {isStoreOpen && (
-          <PricingModal 
-            onClose={() => setIsStoreOpen(false)} 
-            onSelectPlan={handlePurchase}
-            isProcessing={isProcessing}
-          />
+          <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div></div>}>
+            <PricingModal 
+              onClose={() => setIsStoreOpen(false)} 
+              onSelectPlan={handlePurchase}
+              isProcessing={isProcessing}
+            />
+          </Suspense>
         )}
 
         {isAuthOpen && (
@@ -1001,11 +1027,13 @@ const App: React.FC = () => {
         )}
 
         {isProfileOpen && currentUser && (
-          <UserProfileModal
-            isOpen={isProfileOpen}
-            onClose={() => setIsProfileOpen(false)}
-            onLogout={handleLogout}
-          />
+          <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"><div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div></div>}>
+            <UserProfileModal
+              isOpen={isProfileOpen}
+              onClose={() => setIsProfileOpen(false)}
+              onLogout={handleLogout}
+            />
+          </Suspense>
         )}
 
         {showConsentModal && currentUser && (
@@ -1116,7 +1144,9 @@ const App: React.FC = () => {
 
                 {/* Galeria da Comunidade */}
                 <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
-                  <CommunityGallery />
+                  <Suspense fallback={<GallerySkeleton count={6} />}>
+                    <CommunityGallery />
+                  </Suspense>
                 </div>
               </div>
             )}
@@ -1407,11 +1437,13 @@ const App: React.FC = () => {
                     <button onClick={resetApp} className="bg-slate-900 dark:bg-slate-800 text-white hover:bg-indigo-600 dark:hover:bg-indigo-700 px-10 py-5 rounded-[1.5rem] font-black transition-all shadow-2xl hover:-translate-y-1 active:scale-95">Iniciar Nova Obra</button>
                   </div>
                 </div>
-                <Gallery 
-                    images={generatedImages} 
-                    isBatching={!!batchStatus} 
-                    pendingCount={batchStatus ? batchStatus.total - generatedImages.length : 0} 
-                />
+                <Suspense fallback={<GallerySkeleton count={6} />}>
+                  <Gallery 
+                      images={generatedImages} 
+                      isBatching={!!batchStatus} 
+                      pendingCount={batchStatus ? batchStatus.total - generatedImages.length : 0} 
+                  />
+                </Suspense>
               </div>
             )}
           </div>
@@ -1462,6 +1494,26 @@ const App: React.FC = () => {
       {showTermsOfService && (
         <TermsOfService onClose={() => setShowTermsOfService(false)} />
       )}
+
+      {/* Reset Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showResetConfirm}
+        title="Iniciar Nova Obra?"
+        message="Você tem imagens geradas que serão perdidas. Deseja realmente iniciar uma nova obra?"
+        confirmText="Sim, Iniciar Nova"
+        cancelText="Cancelar"
+        variant="warning"
+        onConfirm={() => {
+          if (pendingReset) {
+            pendingReset();
+            setPendingReset(null);
+          }
+        }}
+        onCancel={() => {
+          setShowResetConfirm(false);
+          setPendingReset(null);
+        }}
+      />
     </div>
   );
 };

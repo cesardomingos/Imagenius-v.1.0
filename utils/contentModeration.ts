@@ -39,6 +39,59 @@ const SUSPICIOUS_CHARACTERS = [
 ];
 
 /**
+ * Caracteres Unicode que podem ser usados para mascarar palavras bloqueadas
+ * Exemplos: zero-width spaces, homoglyphs, etc.
+ */
+const BYPASS_CHARACTERS = [
+  /\u200B/g, // Zero-width space
+  /\u200C/g, // Zero-width non-joiner
+  /\u200D/g, // Zero-width joiner
+  /\uFEFF/g, // Zero-width no-break space
+  /\u2060/g, // Word joiner
+  /\u180E/g, // Mongolian vowel separator
+];
+
+/**
+ * Normaliza string Unicode para forma canônica (NFC)
+ * Isso ajuda a detectar tentativas de bypass usando caracteres similares
+ */
+function normalizeUnicode(text: string): string {
+  // Normalizar para NFC (Canonical Composition)
+  let normalized = text.normalize('NFC');
+  
+  // Remover caracteres de bypass
+  for (const pattern of BYPASS_CHARACTERS) {
+    normalized = normalized.replace(pattern, '');
+  }
+  
+  return normalized;
+}
+
+/**
+ * Detecta tentativas de bypass usando homoglyphs ou caracteres similares
+ */
+function detectBypassAttempt(text: string): boolean {
+  // Padrões comuns de bypass: substituir letras por números ou caracteres similares
+  const bypassPatterns = [
+    /[0oO]/g, // 0, o, O podem ser usados para mascarar
+    /[1lI]/g, // 1, l, I podem ser confundidos
+    /[5sS]/g, // 5, s, S
+    /[@aA]/g, // @, a, A
+  ];
+  
+  // Verificar se há muitas substituições suspeitas
+  let suspiciousCount = 0;
+  for (const pattern of bypassPatterns) {
+    const matches = text.match(pattern);
+    if (matches && matches.length > text.length * 0.3) {
+      suspiciousCount++;
+    }
+  }
+  
+  return suspiciousCount >= 2;
+}
+
+/**
  * Valida o comprimento do prompt
  */
 export function validatePromptLength(prompt: string): { valid: boolean; error?: string } {
@@ -58,6 +111,19 @@ export function sanitizePrompt(prompt: string): { sanitized: string; wasModified
   let sanitized = prompt.trim();
   let wasModified = false;
 
+  // Normalizar Unicode primeiro (ajuda a detectar bypass)
+  const beforeNormalization = sanitized;
+  sanitized = normalizeUnicode(sanitized);
+  if (sanitized !== beforeNormalization) {
+    wasModified = true;
+  }
+
+  // Detectar tentativas de bypass
+  if (detectBypassAttempt(sanitized)) {
+    // Se detectar bypass, aplicar sanitização mais agressiva
+    wasModified = true;
+  }
+
   // Remover caracteres suspeitos
   for (const pattern of SUSPICIOUS_CHARACTERS) {
     const before = sanitized;
@@ -67,7 +133,7 @@ export function sanitizePrompt(prompt: string): { sanitized: string; wasModified
     }
   }
 
-  // Aplicar filtros de conteúdo bloqueado
+  // Aplicar filtros de conteúdo bloqueado (após normalização)
   for (const pattern of BLOCKED_PATTERNS) {
     if (pattern.test(sanitized)) {
       sanitized = sanitized.replace(pattern, '[conteúdo filtrado]');

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { GeneratedImage } from '../types';
 import { shareArt, checkIfArtIsShared } from '../services/communityService';
 import Tooltip from './Tooltip';
+import { ImageCardSkeleton } from './SkeletonLoader';
 
 interface GalleryProps {
   images: GeneratedImage[];
@@ -148,6 +149,8 @@ const Gallery: React.FC<GalleryProps> = ({
               alt="Generated Result" 
               className="w-full h-72 object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
               onClick={() => setSelectedImage(img)}
+              loading="lazy"
+              decoding="async"
             />
             <div className="p-4">
               <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">{new Date(img.timestamp).toLocaleString()}</p>
@@ -201,6 +204,8 @@ const Gallery: React.FC<GalleryProps> = ({
                           src={selectedImage.referenceImageUrl} 
                           alt="Imagem Original" 
                           className="w-full h-auto"
+                          loading="eager"
+                          decoding="async"
                         />
                       </div>
                     </div>
@@ -214,6 +219,8 @@ const Gallery: React.FC<GalleryProps> = ({
                           src={selectedImage.url} 
                           alt="Imagem Gerada" 
                           className="w-full h-auto"
+                          loading="eager"
+                          decoding="async"
                         />
                       </div>
                     </div>

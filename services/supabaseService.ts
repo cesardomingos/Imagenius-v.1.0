@@ -20,12 +20,71 @@ const getSupabaseClient = (): SupabaseClient | null => {
 const supabase = getSupabaseClient();
 
 /**
+ * Valida formato de email
+ */
+function validateEmail(email: string): { valid: boolean; error?: string } {
+  if (!email || email.trim().length === 0) {
+    return { valid: false, error: 'Email é obrigatório' };
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return { valid: false, error: 'Formato de email inválido' };
+  }
+
+  // Verificar comprimento máximo
+  if (email.length > 254) {
+    return { valid: false, error: 'Email muito longo (máximo 254 caracteres)' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Valida força da senha
+ */
+function validatePassword(password: string): { valid: boolean; error?: string } {
+  if (!password || password.length === 0) {
+    return { valid: false, error: 'Senha é obrigatória' };
+  }
+
+  if (password.length < 8) {
+    return { valid: false, error: 'Senha deve ter pelo menos 8 caracteres' };
+  }
+
+  if (password.length > 128) {
+    return { valid: false, error: 'Senha muito longa (máximo 128 caracteres)' };
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: 'Senha deve conter pelo menos uma letra maiúscula' };
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: 'Senha deve conter pelo menos uma letra minúscula' };
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: 'Senha deve conter pelo menos um número' };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Autenticação: Login
  */
 export async function signIn(email: string, password: string): Promise<{ user: UserProfile | null; error: string | null }> {
   try {
-    if (!email || !password) {
-      return { user: null, error: 'Email e senha são obrigatórios' };
+    // Validar email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      return { user: null, error: emailValidation.error || 'Email inválido' };
+    }
+
+    // Validar senha (formato básico para login)
+    if (!password || password.length === 0) {
+      return { user: null, error: 'Senha é obrigatória' };
     }
 
     if (supabase) {
@@ -116,8 +175,16 @@ export async function signUp(
   referralCode?: string
 ): Promise<{ user: UserProfile | null; error: string | null }> {
   try {
-    if (password.length < 6) {
-      return { user: null, error: 'A senha deve ter pelo menos 6 caracteres' };
+    // Validar email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      return { user: null, error: emailValidation.error || 'Email inválido' };
+    }
+
+    // Validar força da senha
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return { user: null, error: passwordValidation.error || 'Senha inválida' };
     }
 
     if (supabase) {
@@ -799,8 +866,16 @@ export async function updatePassword(newPassword: string): Promise<{ success: bo
 /**
  * Exclui a conta do usuário e todos os dados relacionados
  */
-export async function deleteUserAccount(): Promise<{ success: boolean; error?: string }> {
+export async function deleteUserAccount(csrfToken?: string): Promise<{ success: boolean; error?: string }> {
   try {
+    // Validar token CSRF se fornecido
+    if (csrfToken) {
+      const { validateCSRFToken } = await import('../utils/csrf');
+      if (!validateCSRFToken(csrfToken)) {
+        return { success: false, error: 'Token CSRF inválido. Por favor, recarregue a página e tente novamente.' };
+      }
+    }
+
     if (!supabase) {
       return { success: false, error: 'Supabase não configurado' };
     }
