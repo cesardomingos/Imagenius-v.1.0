@@ -171,13 +171,13 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
           </Tooltip>
 
           {/* Credit Counter - Sempre visível no topo direito */}
-          <Tooltip content="Seus créditos disponíveis. Cada imagem gerada consome 1 crédito. Clique para comprar mais créditos.">
+          <Tooltip content="Seus créditos disponíveis. 1 crédito = 1 imagem gerada. Clique para comprar mais créditos.">
             <div 
               onClick={onOpenStore}
               className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-1.5 md:py-2 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl md:rounded-2xl cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-700 transition-all group"
             >
               <div className="flex flex-col items-end">
-                <span className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Créditos</span>
+                <span className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Créditos (1 = 1 imagem)</span>
                 <span className="text-xs md:text-sm font-black text-slate-900 dark:text-white">{credits}</span>
               </div>
               <div className="w-7 h-7 md:w-8 md:h-8 bg-genius-gradient rounded-lg md:rounded-xl flex items-center justify-center text-white shadow shadow-indigo-100/50 group-hover:scale-110 transition-transform">

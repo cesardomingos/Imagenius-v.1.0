@@ -183,11 +183,49 @@ const Gallery: React.FC<GalleryProps> = ({
               </button>
             </div>
             
-            <div className="flex-grow overflow-auto p-4 md:p-8 flex flex-col md:flex-row gap-8">
-              <div className="w-full md:w-2/3">
-                <img src={selectedImage.url} alt="Full View" className="w-full rounded-2xl shadow-lg border border-slate-200" />
-              </div>
-              <div className="w-full md:w-1/3 space-y-4">
+            <div className="flex-grow overflow-auto p-4 md:p-8">
+              {selectedImage.referenceImageUrl ? (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h4 className="text-lg font-black text-slate-900 dark:text-white mb-2">Comparação: Antes e Depois</h4>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Veja a transformação da sua imagem</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
+                        <h5 className="text-sm font-black text-slate-600 dark:text-slate-400 uppercase tracking-wider">Antes</h5>
+                      </div>
+                      <div className="rounded-2xl overflow-hidden border-2 border-slate-300 dark:border-slate-600 shadow-lg">
+                        <img 
+                          src={selectedImage.referenceImageUrl} 
+                          alt="Imagem Original" 
+                          className="w-full h-auto"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>
+                        <h5 className="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Depois</h5>
+                      </div>
+                      <div className="rounded-2xl overflow-hidden border-2 border-indigo-500 dark:border-indigo-400 shadow-lg">
+                        <img 
+                          src={selectedImage.url} 
+                          alt="Imagem Gerada" 
+                          className="w-full h-auto"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full">
+                  <img src={selectedImage.url} alt="Full View" className="w-full rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700" />
+                </div>
+              )}
+              
+              <div className="mt-8 space-y-4">
                 <div>
                   <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Prompt Utilizado</label>
                   <p className="text-slate-800 dark:text-slate-200 text-lg italic leading-relaxed">"{selectedImage.prompt}"</p>
@@ -242,7 +280,11 @@ const Gallery: React.FC<GalleryProps> = ({
                     </div>
                   )}
                   
-                  <p className="text-center text-xs text-slate-400 dark:text-slate-500">Clique na imagem para ampliar se necessário.</p>
+                  <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+                    {selectedImage.referenceImageUrl 
+                      ? 'Compare as imagens lado a lado para ver a transformação completa.'
+                      : 'Clique na imagem para ampliar se necessário.'}
+                  </p>
                 </div>
               </div>
             </div>

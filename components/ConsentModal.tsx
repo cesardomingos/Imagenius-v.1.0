@@ -84,19 +84,19 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
         </div>
       }
     >
-      {/* Content */}
-      <div className="flex-grow overflow-auto -mx-6 -my-6">
-        <div className="p-6 md:p-8">
+      <div className="flex flex-col h-full">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto -mx-6 -my-6 px-6 py-6">
           <div className="space-y-6">
             {isPolicyUpdate && (
-              <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <p className="text-sm font-bold text-blue-900 mb-1">O que mudou?</p>
-                    <p className="text-xs text-blue-700">
+                    <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mb-1">O que mudou?</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
                       Atualizamos nossa Política de Privacidade e Termos de Uso para melhor refletir nossas práticas e garantir maior transparência sobre como tratamos seus dados pessoais.
                     </p>
                   </div>
@@ -105,11 +105,11 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
             )}
 
             <div className="space-y-4">
-              <p className="text-slate-700 leading-relaxed">
+              <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
                 Para continuar usando o Imagenius, precisamos do seu consentimento para o tratamento dos seus dados pessoais conforme a Lei Geral de Proteção de Dados (LGPD).
               </p>
 
-              <div className="p-4 bg-slate-50 rounded-xl border-2 border-slate-200">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700">
                 <label className="flex items-start gap-3 cursor-pointer group">
                   <input
                     type="checkbox"
@@ -118,9 +118,9 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
                       setPrivacyOptIn(e.target.checked);
                       setError('');
                     }}
-                    className="mt-1 w-5 h-5 text-indigo-600 border-2 border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                    className="mt-1 w-5 h-5 text-indigo-600 border-2 border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
                   />
-                  <span className="text-sm text-slate-700 leading-relaxed">
+                  <span className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                     Eu li e concordo com os{' '}
                     <button
                       type="button"
@@ -128,7 +128,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
                         e.preventDefault();
                         setShowTermsOfService(true);
                       }}
-                      className="text-indigo-600 hover:text-indigo-700 font-bold underline"
+                      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold underline"
                     >
                       Termos de Uso
                     </button>
@@ -139,7 +139,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
                         e.preventDefault();
                         setShowPrivacyPolicy(true);
                       }}
-                      className="text-indigo-600 hover:text-indigo-700 font-bold underline"
+                      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold underline"
                     >
                       Política de Privacidade
                     </button>
@@ -149,28 +149,27 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
               </div>
 
               {error && (
-                <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl">
-                  <p className="text-sm font-bold text-red-600">{error}</p>
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl">
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">{error}</p>
                 </div>
               )}
 
               <div className="pt-4 space-y-3">
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   <strong>Importante:</strong> Ao aceitar, você concorda com o tratamento dos seus dados pessoais para os fins descritos nas políticas. Você pode revogar seu consentimento a qualquer momento através das configurações do seu perfil.
                 </p>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <div className="p-6 border-t border-slate-200 flex items-center justify-between gap-4 -mx-6 -mb-6">
+        {/* Footer */}
+        <div className="border-t border-slate-200 dark:border-slate-700 -mx-6 -mb-6 px-6 py-4 flex items-center justify-between gap-4">
           {onDecline && (
             <button
               onClick={handleDecline}
               disabled={saving}
-              className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-all disabled:opacity-50"
+              className="px-6 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all disabled:opacity-50"
             >
               Recusar
             </button>
@@ -179,7 +178,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
           <button
             onClick={handleAccept}
             disabled={saving || !privacyOptIn}
-            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {saving ? (
               <>
@@ -194,6 +193,7 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
             )}
           </button>
         </div>
+      </div>
 
       {/* Privacy Policy Modal */}
       {showPrivacyPolicy && (

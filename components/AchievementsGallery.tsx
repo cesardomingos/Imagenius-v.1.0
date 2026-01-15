@@ -97,23 +97,34 @@ const AchievementsGallery: React.FC<AchievementsGalleryProps> = ({ isOpen, onClo
   return (
     <div className={`${embedded ? 'relative' : 'fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md'} ${embedded ? '' : 'animate-in fade-in duration-300'} overflow-y-auto`}>
       <div className={`bg-white dark:bg-slate-800 ${embedded ? 'rounded-2xl' : 'rounded-3xl'} max-w-6xl w-full ${embedded ? 'max-h-none' : 'max-h-[90vh]'} overflow-hidden ${embedded ? '' : 'shadow-2xl'} ${embedded ? '' : 'animate-in zoom-in-95 duration-300'} flex flex-col ${embedded ? '' : 'my-8'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white">Conquistas</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Complete desafios e ganhe créditos bônus
+        {/* Header - Only show when not embedded */}
+        {!embedded && (
+          <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+            <div>
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white">Conquistas</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Complete desafios e ganhe créditos bônus
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+        
+        {/* Subtitle when embedded */}
+        {embedded && (
+          <div className="mb-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Complete desafios e ganhe créditos bônus. Cada conquista desbloqueada te recompensa com créditos extras!
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        )}
 
         {/* Content */}
         <div className="flex-grow overflow-auto p-6 md:p-8">

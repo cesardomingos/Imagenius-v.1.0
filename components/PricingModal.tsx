@@ -122,7 +122,12 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
         <div className="lg:col-span-8 p-4 sm:p-6 md:p-8 lg:p-14 bg-white dark:bg-slate-800 overflow-y-auto">
             {/* Planos Avulsos */}
             <div className="mb-8">
-              <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-4">Pacotes de Créditos</h3>
+              <div className="mb-4">
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mb-2">Pacotes de Créditos</h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                  <strong className="text-slate-700 dark:text-slate-300">1 crédito = 1 imagem gerada.</strong> Cada crédito permite gerar uma imagem completa.
+                </p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
                 {PLANS.filter(p => p.type === 'one-time').map((plan) => {
                 const isSelected = selectedPlanId === plan.id;
@@ -150,11 +155,16 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
 
                   <div className="space-y-3 sm:space-y-4">
                     <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{plan.credits}</span>
-                      <span className="text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">
-                        {plan.type === 'subscription' ? 'Imagens/mês' : 'Imagens'}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{plan.credits}</span>
+                        <span className="text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">
+                          {plan.type === 'subscription' ? 'Imagens/mês' : 'Imagens'}
+                        </span>
+                      </div>
+                      <p className="text-[8px] sm:text-[9px] text-slate-500 dark:text-slate-400">
+                        {plan.credits} crédito{plan.credits > 1 ? 's' : ''} = {plan.credits} imagem{plan.credits > 1 ? 'ns' : ''}
+                      </p>
                     </div>
                     {plan.type === 'subscription' && plan.interval && (
                       <div className="text-[9px] sm:text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">

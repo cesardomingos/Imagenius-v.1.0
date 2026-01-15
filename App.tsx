@@ -131,6 +131,13 @@ const App: React.FC = () => {
     generated: string;
   } | null>(null);
 
+  // Preview State (imagem gerada aguardando confirmação antes de gastar crédito)
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    prompt: string;
+    referenceImageUrl?: string;
+  } | null>(null);
+
   // Keyboard Shortcuts
   const keyboardShortcuts: KeyboardShortcut[] = [
     {
@@ -486,13 +493,18 @@ const App: React.FC = () => {
       return;
     }
     
-    // Verificar se o usuário está logado
-    if (!currentUser) {
-      setToast({
-        message: 'Você precisa estar logado para continuar. Faça login ou crie uma conta.',
-        type: 'warning'
-      });
-      setIsAuthOpen(true);
+    // Verificar créditos (visitantes têm 2 créditos de test drive)
+    const currentCredits = await fetchUserCredits();
+    if (currentCredits < 1) {
+      if (!currentUser) {
+        setToast({
+          message: 'Você usou todos os seus 2 créditos de teste! Faça login ou crie uma conta para continuar.',
+          type: 'warning'
+        });
+        setIsAuthOpen(true);
+      } else {
+        setIsStoreOpen(true);
+      }
       return;
     }
     
@@ -536,13 +548,18 @@ const App: React.FC = () => {
       return;
     }
 
-    // Verificar se o usuário está logado
-    if (!currentUser) {
-      setToast({
-        message: 'Você precisa estar logado para continuar. Faça login ou crie uma conta.',
-        type: 'warning'
-      });
-      setIsAuthOpen(true);
+    // Verificar créditos (visitantes têm 2 créditos de test drive)
+    const currentCredits = await fetchUserCredits();
+    if (currentCredits < 1) {
+      if (!currentUser) {
+        setToast({
+          message: 'Você usou todos os seus 2 créditos de teste! Faça login ou crie uma conta para continuar.',
+          type: 'warning'
+        });
+        setIsAuthOpen(true);
+      } else {
+        setIsStoreOpen(true);
+      }
       return;
     }
 
@@ -562,37 +579,31 @@ const App: React.FC = () => {
 
     setIsProcessing(true);
     setLoadingMsg(selectedTemplate === 'enhance' ? 'Melhorando imagem...' : 'Restaurando imagem...');
+    setLoadingProgress({ current: 1, total: 4, stage: 'Analisando estilo e referências' });
 
     try {
+      // Simular progresso durante análise
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setLoadingProgress({ current: 2, total: 4, stage: 'Processando imagem' });
+      
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setLoadingProgress({ current: 3, total: 4, stage: 'Materializando arte' });
+      
       const imageUrl = await generateCoherentImage([referenceImages[0]], prompt, projectMode);
+      
+      setLoadingProgress({ current: 4, total: 4, stage: 'Finalizando' });
+      await new Promise(resolve => setTimeout(resolve, 300));
       if (imageUrl) {
-        const success = await deductCredits(1);
-        if (success) {
-          let artId: string | undefined;
-          if (currentUser) {
-            const saveResult = await saveUserArt(imageUrl, prompt);
-            if (saveResult.success && saveResult.artId) {
-              artId = saveResult.artId;
-            }
-          }
-
-          const newImg: GeneratedImage = {
-            id: artId || Date.now().toString(),
-            url: imageUrl,
-            prompt,
-            timestamp: Date.now()
-          };
-          setGeneratedImages(prev => [newImg, ...prev]);
-          setCredits(prev => prev - 1);
-          setStep('gallery');
-          
-          setToast({
-            message: selectedTemplate === 'enhance' 
-              ? 'Imagem melhorada com sucesso!' 
-              : 'Imagem restaurada com sucesso!',
-            type: 'success'
-          });
-        }
+        // Mostrar preview antes de gastar crédito
+        const referenceUrl = referenceImages.length > 0 
+          ? `data:${referenceImages[0].mimeType};base64,${referenceImages[0].data}`
+          : undefined;
+        setPreviewImage({
+          url: imageUrl,
+          prompt,
+          referenceImageUrl: referenceUrl
+        });
+        setStep('gallery');
       }
     } catch (error: any) {
       setToast({
@@ -601,7 +612,52 @@ const App: React.FC = () => {
       });
     } finally {
       setIsProcessing(false);
+      setLoadingProgress(null);
     }
+  };
+
+  const handleAcceptPreview = async () => {
+    if (!previewImage) return;
+
+    const success = await deductCredits(1);
+    if (success) {
+      let artId: string | undefined;
+      if (currentUser) {
+        const saveResult = await saveUserArt(previewImage.url, previewImage.prompt);
+        if (saveResult.success && saveResult.artId) {
+          artId = saveResult.artId;
+        }
+      }
+
+      const newImg: GeneratedImage = {
+        id: artId || Date.now().toString(),
+        url: previewImage.url,
+        prompt: previewImage.prompt,
+        timestamp: Date.now(),
+        referenceImageUrl: previewImage.referenceImageUrl
+      };
+      setGeneratedImages(prev => [newImg, ...prev]);
+      setCredits(prev => prev - 1);
+      setPreviewImage(null);
+      
+      setToast({
+        message: 'Imagem salva com sucesso! 1 crédito foi gasto.',
+        type: 'success'
+      });
+    } else {
+      setToast({
+        message: 'Erro ao processar crédito. Tente novamente.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleRejectPreview = () => {
+    setPreviewImage(null);
+    setToast({
+      message: 'Imagem descartada. Nenhum crédito foi gasto.',
+      type: 'info'
+    });
   };
 
   const handleGenerateBatch = async (selectedPrompts: string[]) => {
@@ -625,6 +681,8 @@ const App: React.FC = () => {
 
     setStep('gallery');
     setBatchStatus({ total: selectedPrompts.length, current: 0 });
+    setIsProcessing(true);
+    setLoadingMsg('Gerando imagens...');
     
     let successfulGenerations = 0;
     let creditsDeducted = 0;
@@ -632,8 +690,38 @@ const App: React.FC = () => {
     
     for (let i = 0; i < selectedPrompts.length; i++) {
       setBatchStatus(prev => prev ? { ...prev, current: i + 1 } : null);
+      const totalStages = 4;
+      
+      // Progresso para cada imagem individual
+      setLoadingProgress({ 
+        current: 1, 
+        total: totalStages, 
+        stage: `Analisando referências (${i + 1}/${selectedPrompts.length})` 
+      });
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      setLoadingProgress({ 
+        current: 2, 
+        total: totalStages, 
+        stage: `Processando prompt (${i + 1}/${selectedPrompts.length})` 
+      });
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setLoadingProgress({ 
+        current: 3, 
+        total: totalStages, 
+        stage: `Materializando arte (${i + 1}/${selectedPrompts.length})` 
+      });
+      
       try {
         const imageUrl = await generateCoherentImage(referenceImages, selectedPrompts[i], projectMode);
+        
+        setLoadingProgress({ 
+          current: 4, 
+          total: totalStages, 
+          stage: `Finalizando (${i + 1}/${selectedPrompts.length})` 
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
         if (imageUrl) {
           const success = await deductCredits(1);
           if (success) {
@@ -670,6 +758,8 @@ const App: React.FC = () => {
     }
 
     setBatchStatus(null);
+    setIsProcessing(false);
+    setLoadingProgress(null);
 
     // Verificar achievements relacionados à geração de imagens
     if (currentUser && successfulGenerations > 0) {
@@ -821,7 +911,7 @@ const App: React.FC = () => {
         onOpenTutorial={() => setIsTutorialOpen(true)}
       />
       
-      <main className="flex-grow container mx-auto px-4 py-12 pb-24 md:pb-12 max-w-4xl">
+      <main className="flex-grow container mx-auto px-2 sm:px-4 py-6 sm:py-8 md:py-12 pb-20 sm:pb-24 md:pb-12 max-w-4xl">
         {isStoreOpen && (
           <PricingModal 
             onClose={() => setIsStoreOpen(false)} 
@@ -932,12 +1022,12 @@ const App: React.FC = () => {
         {isProcessing && <Loader message={loadingMsg} />}
 
         {!isProcessing && (
-          <div className="bg-white dark:bg-slate-800 rounded-[2rem] md:rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-4 sm:p-6 md:p-8 lg:p-14 transition-all">
+          <div className="bg-white dark:bg-slate-800 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[3rem] shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 border border-slate-100 dark:border-slate-700 p-3 sm:p-6 md:p-8 lg:p-14 transition-all">
             
             {step === 'mode_selection' && (
-              <div className="space-y-16 animate-in fade-in duration-700">
-                <div className="text-center space-y-6">
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tighter px-4">
+              <div className="space-y-8 sm:space-y-12 md:space-y-16 animate-in fade-in duration-700">
+                <div className="text-center space-y-4 sm:space-y-6">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-slate-900 dark:text-white tracking-tighter px-2 sm:px-4">
                     Crie imagens que mantêm o mesmo estilo. <span className="text-genius-gradient">Sempre.</span>
                   </h2>
                   <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg md:text-xl font-bold max-w-2xl mx-auto px-4">
@@ -996,7 +1086,7 @@ const App: React.FC = () => {
                   >
                   <button 
                     onClick={() => handleModeSelection('single')}
-                    className="group relative p-6 sm:p-8 md:p-10 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 border-2 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20"
+                    className="group relative p-4 sm:p-6 md:p-8 lg:p-10 rounded-[1.25rem] sm:rounded-[1.5rem] md:rounded-[2rem] lg:rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 border-2 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400 transition-all text-left hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20"
                   >
                     <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-white dark:bg-slate-700 rounded-2xl sm:rounded-3xl shadow-lg flex items-center justify-center mb-4 sm:mb-6 md:mb-8 group-hover:scale-110 transition-transform duration-500">
                       <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -1008,7 +1098,7 @@ const App: React.FC = () => {
 
                   <button 
                     onClick={() => handleModeSelection('studio')}
-                    className="group relative p-10 rounded-[2.5rem] bg-slate-900 dark:bg-slate-950 border-2 border-transparent hover:border-indigo-400 dark:hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-500/20 dark:hover:shadow-indigo-500/30"
+                    className="group relative p-6 sm:p-8 md:p-10 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[2.5rem] bg-slate-900 dark:bg-slate-950 border-2 border-transparent hover:border-indigo-400 dark:hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-500/20 dark:hover:shadow-indigo-500/30"
                   >
                     <div className="w-16 h-16 bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
                       <svg className="w-8 h-8 text-white dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
@@ -1213,11 +1303,80 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {step === 'gallery' && (
+            {step === 'gallery' && previewImage && (
+              <div className="space-y-8 animate-in zoom-in-95 duration-700">
+                <div className="text-center space-y-4">
+                  <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white">
+                    Preview da Imagem Gerada
+                  </h2>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Revise a imagem antes de gastar 1 crédito
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {previewImage.referenceImageUrl && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Imagem Original
+                      </h3>
+                      <div className="rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700">
+                        <img 
+                          src={previewImage.referenceImageUrl} 
+                          alt="Original" 
+                          className="w-full h-auto"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Imagem Gerada
+                    </h3>
+                    <div className="rounded-2xl overflow-hidden border-2 border-indigo-500 dark:border-indigo-400 shadow-xl">
+                      <img 
+                        src={previewImage.url} 
+                        alt="Gerada" 
+                        className="w-full h-auto"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                  <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-3">
+                    Prompt Aplicado
+                  </label>
+                  <p className="text-slate-800 dark:text-slate-200 font-medium italic leading-relaxed">
+                    "{previewImage.prompt}"
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-center gap-4 pt-4">
+                  <button
+                    onClick={handleRejectPreview}
+                    className="px-8 py-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-black rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95"
+                  >
+                    Descartar (Gratuito)
+                  </button>
+                  <button
+                    onClick={handleAcceptPreview}
+                    className="px-8 py-4 bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white font-black rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Aceitar e Gastar 1 Crédito
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 'gallery' && !previewImage && (
               <div className="space-y-12 animate-in zoom-in-95 duration-700">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                   <div className="space-y-2">
-                    <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Galeria de <span className="text-genius-gradient">Gênios</span></h2>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tighter">Galeria de <span className="text-genius-gradient">Gênios</span></h2>
                     {batchStatus && (
                         <div className="flex items-center gap-3">
                             <div className="w-2 h-2 bg-indigo-600 rounded-full animate-ping"></div>

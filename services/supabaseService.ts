@@ -324,25 +324,30 @@ export async function fetchUserCredits(): Promise<number> {
     return saved ? parseInt(saved) : user.credits;
   }
   
-  // Usuário não autenticado - retornar créditos padrão
-  const saved = getItem('genius_credits');
-  return saved ? parseInt(saved) : 15;
+  // Usuário não autenticado - test drive de 2 créditos
+  const guestCredits = getItem('genius_guest_credits');
+  if (guestCredits) {
+    return parseInt(guestCredits);
+  }
+  // Inicializar test drive com 2 créditos
+  setItem('genius_guest_credits', '2');
+  return 2;
 }
 
 /**
  * Deduz créditos do usuário no Supabase.
  * Garante atomicidade no banco de dados.
+ * Para visitantes, usa localStorage para test drive de 2 créditos.
  */
 export async function deductCredits(amount: number): Promise<boolean> {
   const user = await getCurrentUser();
-  if (!user) return false;
-
   const current = await fetchUserCredits();
   if (current < amount) return false;
   
   const nextValue = current - amount;
 
-  if (supabase && user.id) {
+  if (user && supabase && user.id) {
+    // Usuário logado - atualizar no banco
     try {
       const { error } = await supabase
         .from('profiles')
@@ -353,14 +358,17 @@ export async function deductCredits(amount: number): Promise<boolean> {
         console.error('Erro ao deduzir créditos:', error);
         return false;
       }
+      // Atualizar cache
+      setItem('genius_credits', nextValue.toString());
     } catch (error) {
       console.error('Erro ao deduzir créditos:', error);
       return false;
     }
+  } else {
+    // Visitante - atualizar test drive no localStorage
+    setItem('genius_guest_credits', nextValue.toString());
   }
 
-  // Atualizar cache
-  setItem('genius_credits', nextValue.toString());
   return true;
 }
 

@@ -97,7 +97,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+          <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
             {title && (
               <div className="flex-1">
                 {typeof title === 'string' ? (
@@ -125,7 +125,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
 
         {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-6">
+          <div className="p-3 sm:p-4 md:p-6">
             {children}
           </div>
         </div>

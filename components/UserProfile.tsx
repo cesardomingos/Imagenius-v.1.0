@@ -408,43 +408,62 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
 
               {/* Referral Section */}
               <div className="pt-6 border-t border-slate-200 dark:border-slate-700 space-y-4">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">Programa de Indicação</h3>
-                <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 space-y-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Programa de Afiliados</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    Convide pessoas e ganhe <strong className="text-indigo-600 dark:text-indigo-400">5 créditos</strong> para cada cadastro confirmado!
+                  </p>
+                </div>
+                <div className="p-5 sm:p-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl border-2 border-indigo-200 dark:border-indigo-700 space-y-5">
                   <div>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                      Seu Link de Indicação
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">
+                      Seu Link de Convite
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
                         value={referralLink || 'Carregando...'}
                         readOnly
-                        className="flex-1 px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-lg text-sm font-mono text-slate-600 dark:text-slate-300"
+                        className="flex-1 px-4 py-3 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-lg text-sm font-mono text-slate-600 dark:text-slate-300 break-all"
                       />
                       <button
                         onClick={handleCopyLink}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
+                        className={`px-6 py-3 rounded-lg font-black text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 ${
                           linkCopied
-                            ? 'bg-green-500 text-white'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl'
                         }`}
                       >
-                        {linkCopied ? '✓ Copiado!' : 'Copiar'}
+                        {linkCopied ? (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            Copiar Link
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
                   
                   {referralStats && (
                     <div className="grid grid-cols-2 gap-4 pt-2">
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                          Indicações
+                          Convites
                         </p>
                         <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
                           {referralStats.totalReferrals}
                         </p>
                       </div>
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                           Créditos Ganhos
                         </p>
@@ -455,10 +474,22 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                     </div>
                   )}
                   
-                  <div className="pt-2 border-t border-indigo-200 dark:border-indigo-700">
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      <strong className="text-indigo-700 dark:text-indigo-300">Como funciona:</strong> Compartilhe seu link único. Quando alguém se cadastrar usando seu link e confirmar o email, você ganha <strong className="text-indigo-700 dark:text-indigo-300">5 créditos</strong> automaticamente!
-                    </p>
+                  <div className="pt-3 border-t border-indigo-200 dark:border-indigo-700">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 space-y-2">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">
+                        💡 Como funciona:
+                      </p>
+                      <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1.5 list-disc list-inside">
+                        <li>Compartilhe seu link único com amigos e colegas</li>
+                        <li>Quando alguém se cadastrar usando seu link e confirmar o email</li>
+                        <li>Você recebe <strong className="text-indigo-600 dark:text-indigo-400">5 créditos</strong> automaticamente na sua conta!</li>
+                      </ul>
+                      <div className="pt-2 mt-3 border-t border-slate-200 dark:border-slate-700">
+                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                          🎁 Quanto mais você convida, mais créditos você ganha!
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
