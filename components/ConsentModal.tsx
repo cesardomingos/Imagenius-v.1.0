@@ -162,7 +162,6 @@ const ConsentModal: React.FC<ConsentModalProps> = ({
             </div>
           </div>
         </div>
-        </div>
       </div>
 
       {/* Footer */}
