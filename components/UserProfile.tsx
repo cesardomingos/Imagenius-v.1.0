@@ -3,6 +3,7 @@ import { getCurrentUser, updateUserProfile, deleteUserAccount, resetPassword } f
 import { fetchUserInvoices } from '../services/stripeService';
 import { getReferralLink, copyReferralLink, getReferralStats } from '../services/referralService';
 import { getUserAchievements } from '../services/achievementService';
+import { fetchRecentUserArts, CommunityArt } from '../services/communityService';
 import { UserProfile as UserProfileType } from '../types';
 import { UserAchievement, AchievementLevel, ACHIEVEMENTS } from '../types/achievements';
 import PrivacyPolicy from './PrivacyPolicy';
@@ -42,10 +43,20 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
   const [resetPasswordSent, setResetPasswordSent] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'invoices' | 'achievements'>('profile');
   const [referralLink, setReferralLink] = useState<string | null>(null);
-  const [referralStats, setReferralStats] = useState<{ totalReferrals: number; totalCreditsEarned: number } | null>(null);
+  const [referralStats, setReferralStats] = useState<{
+    totalReferrals: number;
+    totalCreditsEarned: number;
+    currentLevel: 'bronze' | 'silver' | 'gold' | null;
+    nextLevel: 'silver' | 'gold' | null;
+    progressToNextLevel: number;
+    nextLevelThreshold: number;
+    milestones: Array<{ threshold: number; reached: boolean; reward: number }>;
+  } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+  const [recentArts, setRecentArts] = useState<CommunityArt[]>([]);
+  const [loadingRecentArts, setLoadingRecentArts] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -453,22 +464,107 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                   </div>
                   
                   {referralStats && (
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                          Convites
-                        </p>
-                        <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
-                          {referralStats.totalReferrals}
-                        </p>
+                    <div className="space-y-4 pt-2">
+                      {/* Estatísticas Principais */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                            Convites
+                          </p>
+                          <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                            {referralStats.totalReferrals}
+                          </p>
+                        </div>
+                        <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                            Créditos Ganhos
+                          </p>
+                          <p className="text-2xl font-black text-green-600 dark:text-green-400">
+                            +{referralStats.totalCreditsEarned}
+                          </p>
+                        </div>
                       </div>
+
+                      {/* Badge de Nível */}
+                      {referralStats.currentLevel && (
+                        <div className="bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/40 dark:to-purple-900/40 rounded-lg p-4 border-2 border-indigo-300 dark:border-indigo-600">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xl">
+                                {referralStats.currentLevel === 'gold' ? '🥇' : referralStats.currentLevel === 'silver' ? '🥈' : '🥉'}
+                              </span>
+                              <div>
+                                <p className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                                  Nível {referralStats.currentLevel === 'gold' ? 'Ouro' : referralStats.currentLevel === 'silver' ? 'Prata' : 'Bronze'}
+                                </p>
+                                <p className="text-sm font-black text-indigo-700 dark:text-indigo-300">
+                                  Embaixador {referralStats.currentLevel === 'gold' ? 'Ouro' : referralStats.currentLevel === 'silver' ? 'Prata' : 'Bronze'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Barra de Progresso para Próximo Nível */}
+                          {referralStats.nextLevel && (
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between text-xs mb-1">
+                                <span className="text-slate-600 dark:text-slate-400">
+                                  Próximo nível: {referralStats.nextLevel === 'gold' ? 'Ouro' : 'Prata'}
+                                </span>
+                                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                                  {referralStats.totalReferrals}/{referralStats.nextLevelThreshold}
+                                </span>
+                              </div>
+                              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                                  style={{ width: `${referralStats.progressToNextLevel}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Milestones */}
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                          Créditos Ganhos
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                          Milestones
                         </p>
-                        <p className="text-2xl font-black text-green-600 dark:text-green-400">
-                          +{referralStats.totalCreditsEarned}
-                        </p>
+                        <div className="space-y-2">
+                          {referralStats.milestones.map((milestone, index) => (
+                            <div
+                              key={milestone.threshold}
+                              className={`flex items-center justify-between p-2 rounded-lg transition-all ${
+                                milestone.reached
+                                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700'
+                                  : 'bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {milestone.reached ? (
+                                  <span className="text-lg">✓</span>
+                                ) : (
+                                  <span className="text-slate-400">○</span>
+                                )}
+                                <span className={`text-sm font-bold ${
+                                  milestone.reached
+                                    ? 'text-green-700 dark:text-green-400'
+                                    : 'text-slate-500 dark:text-slate-400'
+                                }`}>
+                                  {milestone.threshold} {milestone.threshold === 1 ? 'convite' : 'convites'}
+                                </span>
+                              </div>
+                              <span className={`text-xs font-black ${
+                                milestone.reached
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}>
+                                +{milestone.reward} créditos
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -491,6 +587,74 @@ const UserProfile: React.FC<UserProfileProps> = ({ isOpen, onClose, onLogout }) 
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Recent Actions History */}
+              <div className="pt-6 border-t border-slate-200 dark:border-slate-700 space-y-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">
+                    Atividades Recentes
+                  </h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    Suas criações das últimas 24 horas
+                  </p>
+                </div>
+
+                {loadingRecentArts ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                  </div>
+                ) : recentArts.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-50 dark:bg-slate-800 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                    <svg className="w-12 h-12 text-slate-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Nenhuma criação nas últimas 24 horas
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentArts.map((art) => {
+                      const artDate = new Date(art.created_at);
+                      const now = new Date();
+                      const hoursAgo = Math.floor((now.getTime() - artDate.getTime()) / (1000 * 60 * 60));
+                      const timeLabel = hoursAgo === 0 ? 'Agora' : `${hoursAgo}h atrás`;
+
+                      return (
+                        <div
+                          key={art.id}
+                          className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:shadow-md transition-all"
+                        >
+                          <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700">
+                            <img
+                              src={art.image_url}
+                              alt={art.prompt}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 mb-1">
+                              {art.prompt}
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                              <span>{timeLabel}</span>
+                              {art.is_shared && (
+                                <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                  </svg>
+                                  Compartilhada
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Security Section */}

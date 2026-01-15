@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchCommunityArts, toggleLike, CommunityArt as CommunityArtType } from '../services/communityService';
 import { GallerySkeleton } from './SkeletonLoader';
+import Leaderboard from './Leaderboard';
 
 interface CommunityGalleryProps {
   arts?: CommunityArtType[];
@@ -167,7 +168,10 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
+      {/* Leaderboard */}
+      <Leaderboard />
+
       {/* Header da Galeria Comunitária */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
@@ -386,5 +390,5 @@ const CommunityGallery: React.FC<CommunityGalleryProps> = ({ arts: initialArts }
   );
 };
 
-export default CommunityGallery;
+export default React.memo(CommunityGallery);
 

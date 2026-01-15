@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Template, TemplateId, getAllTemplates, getTemplatesByCategory } from '../config/templates';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface TemplateSelectorProps {
   onSelectTemplate: (templateId: TemplateId) => void;
@@ -10,6 +11,9 @@ interface TemplateSelectorProps {
 const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, onBack }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
+  // Debounce da busca para melhorar performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   
   const allTemplates = getAllTemplates();
   const businessTemplates = getTemplatesByCategory('business');
@@ -26,9 +30,9 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, o
       filtered = filtered.filter(t => t.category === selectedCategory);
     }
 
-    // Filtro por busca (nome ou descrição)
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    // Filtro por busca (nome ou descrição) - usando valor com debounce
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
       filtered = filtered.filter(t => 
         t.name.toLowerCase().includes(query) || 
         t.description.toLowerCase().includes(query)
@@ -36,7 +40,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, o
     }
 
     return filtered;
-  }, [allTemplates, searchQuery, selectedCategory]);
+  }, [allTemplates, debouncedSearchQuery, selectedCategory]);
 
   // Agrupar templates filtrados por categoria
   const groupedFilteredTemplates = useMemo(() => {
@@ -200,5 +204,5 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelectTemplate, o
   );
 };
 
-export default TemplateSelector;
+export default React.memo(TemplateSelector);
 

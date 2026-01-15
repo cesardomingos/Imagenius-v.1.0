@@ -52,11 +52,16 @@ export function getReferralCodeFromUrl(): string | null {
 }
 
 /**
- * Obtém estatísticas de referência do usuário
+ * Obtém estatísticas de referência do usuário com informações de progresso
  */
 export async function getReferralStats(): Promise<{
   totalReferrals: number;
   totalCreditsEarned: number;
+  currentLevel: 'bronze' | 'silver' | 'gold' | null;
+  nextLevel: 'silver' | 'gold' | null;
+  progressToNextLevel: number;
+  nextLevelThreshold: number;
+  milestones: Array<{ threshold: number; reached: boolean; reward: number }>;
 } | null> {
   try {
     if (!supabase) return null;
@@ -75,13 +80,53 @@ export async function getReferralStats(): Promise<{
       return null;
     }
 
-    // Calcular créditos ganhos (5 créditos por referência)
     const totalReferrals = count || 0;
     const totalCreditsEarned = totalReferrals * 5;
+
+    // Definir milestones e níveis
+    const milestones = [
+      { threshold: 1, reached: totalReferrals >= 1, reward: 5 },
+      { threshold: 5, reached: totalReferrals >= 5, reward: 5 }, // Bônus extra no milestone 5
+      { threshold: 10, reached: totalReferrals >= 10, reward: 10 }, // Bônus extra no milestone 10
+      { threshold: 20, reached: totalReferrals >= 20, reward: 15 }, // Bônus extra no milestone 20
+      { threshold: 50, reached: totalReferrals >= 50, reward: 25 }, // Bônus extra no milestone 50
+      { threshold: 100, reached: totalReferrals >= 100, reward: 50 }, // Bônus extra no milestone 100
+    ];
+
+    // Determinar nível atual e próximo
+    let currentLevel: 'bronze' | 'silver' | 'gold' | null = null;
+    let nextLevel: 'silver' | 'gold' | null = null;
+    let nextLevelThreshold = 5;
+    let progressToNextLevel = 0;
+
+    if (totalReferrals >= 20) {
+      currentLevel = 'gold';
+      nextLevel = null;
+      progressToNextLevel = 100;
+    } else if (totalReferrals >= 5) {
+      currentLevel = 'silver';
+      nextLevel = 'gold';
+      nextLevelThreshold = 20;
+      progressToNextLevel = Math.min(100, (totalReferrals / 20) * 100);
+    } else if (totalReferrals >= 1) {
+      currentLevel = 'bronze';
+      nextLevel = 'silver';
+      nextLevelThreshold = 5;
+      progressToNextLevel = Math.min(100, (totalReferrals / 5) * 100);
+    } else {
+      nextLevel = 'bronze';
+      nextLevelThreshold = 1;
+      progressToNextLevel = 0;
+    }
 
     return {
       totalReferrals,
       totalCreditsEarned,
+      currentLevel,
+      nextLevel,
+      progressToNextLevel,
+      nextLevelThreshold,
+      milestones,
     };
   } catch (error) {
     console.error('Erro ao obter estatísticas de referência:', error);

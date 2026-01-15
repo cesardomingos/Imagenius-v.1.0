@@ -17,6 +17,7 @@ import OfflineBanner from './components/OfflineBanner';
 import ConfirmationModal from './components/ConfirmationModal';
 import SocialProofSection from './components/SocialProofSection';
 import SuccessStories from './components/SuccessStories';
+import BlogContentSection from './components/BlogContentSection';
 import GenerationPreview from './components/GenerationPreview';
 import PromptHistory from './components/PromptHistory';
 import ImageComparison from './components/ImageComparison';
@@ -36,7 +37,9 @@ import ConsentModal from './components/ConsentModal';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import AchievementToast from './components/AchievementToast';
+import SEO from './components/SEO';
 import { GallerySkeleton } from './components/SkeletonLoader';
+import InteractiveTour, { useInteractiveTour } from './components/InteractiveTour';
 
 // Lazy load componentes pesados
 const Gallery = lazy(() => import('./components/Gallery'));
@@ -51,6 +54,7 @@ import {
   checkVisualAlchemistAchievement,
   checkPurchaseAchievements 
 } from './services/achievementService';
+import { analyticsEvents } from './utils/analytics';
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('mode_selection');
@@ -109,6 +113,9 @@ const App: React.FC = () => {
   // Check if we're on the reset password page
   const isResetPasswordPage = window.location.pathname === '/reset-password' || 
                                window.location.search.includes('type=recovery');
+
+  // Interactive Tour
+  const { run: tourRun, startTour, tourCompleted } = useInteractiveTour();
 
   // Toast/Notification State
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -280,6 +287,17 @@ const App: React.FC = () => {
     loadUser();
   }, [loadUserArts]);
 
+  // Iniciar tour na primeira visita
+  useEffect(() => {
+    if (step === 'mode_selection' && !tourCompleted && !tourRun) {
+      // Aguardar um pouco para garantir que a página carregou completamente
+      const timer = setTimeout(() => {
+        startTour();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, tourCompleted, tourRun, startTour]);
+
   // Detectar retorno do checkout do Stripe
   useEffect(() => {
     const handleCheckoutReturn = async () => {
@@ -342,6 +360,15 @@ const App: React.FC = () => {
                 }
               }
               
+              // Track analytics - purchase completed
+              if (transaction) {
+                analyticsEvents.creditsPurchased(
+                  transaction.plan_id || 'unknown',
+                  transaction.amount || 0,
+                  'BRL'
+                );
+              }
+
               setToast({
                 message: `Pagamento confirmado! ${creditsAdded} créditos adicionados ao seu Atelier.`,
                 type: 'success'
@@ -647,6 +674,9 @@ const App: React.FC = () => {
       setGeneratedImages(prev => [newImg, ...prev]);
       setCredits(prev => prev - 1);
       setPreviewImage(null);
+
+      // Track analytics
+      analyticsEvents.imageGenerated(projectMode, previewImage.prompt.length);
       
       setToast({
         message: 'Imagem salva com sucesso! 1 crédito foi gasto.',
@@ -809,6 +839,8 @@ const App: React.FC = () => {
   };
 
   const handlePurchase = async (plan: PricingPlan) => {
+    // Track analytics - purchase intent
+    analyticsEvents.modalOpened('pricing');
     // Verificar se o usuário está autenticado
     if (!currentUser) {
       alert('Você precisa estar logado para fazer uma compra. Faça login primeiro.');
@@ -908,8 +940,43 @@ const App: React.FC = () => {
     );
   }
 
+  // Determinar meta tags baseado no step atual
+  const getSEOTags = () => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const baseDescription = "Transforme suas ideias em imagens incríveis com IA. Gere, melhore e restaure imagens com tecnologia de ponta.";
+    
+    switch (step) {
+      case 'gallery':
+        return {
+          title: 'Minha Galeria | Imagenius',
+          description: 'Veja todas as suas criações geradas com IA',
+          url: `${baseUrl}/gallery`
+        };
+      case 'upload':
+        return {
+          title: 'Gerar Imagem | Imagenius',
+          description: 'Envie sua imagem e transforme-a com IA',
+          url: `${baseUrl}/upload`
+        };
+      default:
+        return {
+          title: "Imagenius | I'm a genius, and you are too.",
+          description: baseDescription,
+          url: baseUrl
+        };
+    }
+  };
+
+  const seoTags = getSEOTags();
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fcfdff] dark:bg-slate-900 text-slate-900 dark:text-slate-100 selection:bg-indigo-100 dark:selection:bg-indigo-900 transition-colors duration-300">
+      <SEO
+        title={seoTags.title}
+        description={seoTags.description}
+        url={seoTags.url}
+        image={`${typeof window !== 'undefined' ? window.location.origin : ''}/og-image.png`}
+      />
       <Header 
         onReset={resetApp} 
         hasImages={generatedImages.length > 0} 
@@ -1076,11 +1143,13 @@ const App: React.FC = () => {
                 </div>
 
                 {/* Template Selector */}
-                <TemplateSelector 
-                  onSelectTemplate={handleTemplateSelection}
-                />
+                <div data-tour="templates">
+                  <TemplateSelector 
+                    onSelectTemplate={handleTemplateSelection}
+                  />
+                </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 sm:px-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 px-4 sm:px-0" data-tour="mode-selection">
                   {/* Botões de Tutorial e Exemplos */}
                   <div className="md:col-span-2 flex justify-center gap-3 sm:gap-4 flex-wrap">
                     <button
@@ -1141,6 +1210,11 @@ const App: React.FC = () => {
 
                 {/* Casos de Sucesso */}
                 <SuccessStories />
+
+                {/* Seção de Blog/Conteúdo */}
+                <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
+                  <BlogContentSection />
+                </div>
 
                 {/* Galeria da Comunidade */}
                 <div className="pt-16 mt-16 border-t border-slate-200 dark:border-slate-700">
@@ -1512,6 +1586,14 @@ const App: React.FC = () => {
         onCancel={() => {
           setShowResetConfirm(false);
           setPendingReset(null);
+        }}
+      />
+
+      {/* Interactive Tour */}
+      <InteractiveTour 
+        run={tourRun} 
+        onComplete={() => {
+          // Tour completed
         }}
       />
     </div>

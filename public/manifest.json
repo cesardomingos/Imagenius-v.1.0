@@ -1,0 +1,37 @@
+{
+  "name": "Imagenius",
+  "short_name": "Imagenius",
+  "description": "Gere imagens incríveis com IA mantendo consistência visual",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcfdff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["design", "productivity", "photography"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Criar Nova Imagem",
+      "short_name": "Novo",
+      "description": "Iniciar criação de nova imagem",
+      "url": "/?action=new",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Galeria",
+      "short_name": "Galeria",
+      "description": "Ver minhas imagens",
+      "url": "/?action=gallery",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
+}
+

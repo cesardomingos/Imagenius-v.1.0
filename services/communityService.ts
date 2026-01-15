@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getCurrentUser } from './supabaseService';
+import { cachedRequest, cacheHelpers } from '../utils/requestCache';
 
 // Interface para arte da comunidade
 export interface CommunityArt {
@@ -36,18 +37,23 @@ const supabase = getSupabaseClient();
  */
 export async function fetchCommunityArts(
   limit: number = 20,
-  offset: number = 0
+  offset: number = 0,
+  forceRefresh: boolean = false
 ): Promise<CommunityArt[]> {
-  try {
-    if (!supabase) {
-      console.warn('Supabase não configurado. Retornando array vazio.');
-      return [];
-    }
+  const cacheKey = cacheHelpers.communityArts({ limit, offset });
+  
+  return cachedRequest(
+    async () => {
+      try {
+        if (!supabase) {
+          console.warn('Supabase não configurado. Retornando array vazio.');
+          return [];
+        }
 
-    const currentUser = await getCurrentUser();
+        const currentUser = await getCurrentUser();
 
-    // Buscar artes compartilhadas
-    const { data, error } = await supabase
+        // Buscar artes compartilhadas
+        const { data, error } = await supabase
       .from('community_arts')
       .select(`
         id,
@@ -123,11 +129,17 @@ export async function fetchCommunityArts(
       };
     });
 
-    return artsWithLikes;
-  } catch (error) {
-    console.error('Erro ao buscar artes da comunidade:', error);
-    return [];
-  }
+        return artsWithLikes;
+      } catch (error) {
+        console.error('Erro ao buscar artes da comunidade:', error);
+        return [];
+      }
+    },
+    cacheKey,
+    2 * 60 * 1000, // 2 minutos
+    true, // localStorage
+    forceRefresh
+  );
 }
 
 /**
@@ -411,25 +423,30 @@ export async function saveUserArt(
 export async function fetchUserArts(
   limit: number = 100,
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 20,
+  forceRefresh: boolean = false
 ): Promise<{ arts: CommunityArt[]; total: number }> {
-  try {
-    if (!supabase) {
-      console.warn('Supabase não configurado. Retornando array vazio.');
-      return { arts: [], total: 0 };
-    }
+  const cacheKey = cacheHelpers.userArts({ page, pageSize });
+  
+  return cachedRequest(
+    async () => {
+      try {
+        if (!supabase) {
+          console.warn('Supabase não configurado. Retornando array vazio.');
+          return { arts: [], total: 0 };
+        }
 
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return { arts: [], total: 0 };
-    }
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+          return { arts: [], total: 0 };
+        }
 
-    // Calcular offset para paginação
-    const offset = (page - 1) * pageSize;
-    const actualLimit = Math.min(pageSize, limit);
+        // Calcular offset para paginação
+        const offset = (page - 1) * pageSize;
+        const actualLimit = Math.min(pageSize, limit);
 
-    // Buscar total de registros
-    const { count } = await supabase
+        // Buscar total de registros
+        const { count } = await supabase
       .from('community_arts')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', currentUser.id);
@@ -470,10 +487,80 @@ export async function fetchUserArts(
       updated_at: art.updated_at
     }));
 
-    return { arts: userArts, total: count || 0 };
+        return { arts: userArts, total: count || 0 };
+      } catch (error) {
+        console.error('Erro ao buscar artes do usuário:', error);
+        return { arts: [], total: 0 };
+      }
+    },
+    cacheKey,
+    1 * 60 * 1000, // 1 minuto
+    false, // sessionStorage (dados do usuário)
+    forceRefresh
+  );
+}
+
+/**
+ * Busca artes do usuário das últimas 24 horas
+ * @returns Array de artes criadas nas últimas 24h
+ */
+export async function fetchRecentUserArts(): Promise<CommunityArt[]> {
+  try {
+    if (!supabase) {
+      return [];
+    }
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return [];
+    }
+
+    // Calcular data de 24 horas atrás
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+    const isoDate = twentyFourHoursAgo.toISOString();
+
+    // Buscar artes das últimas 24h
+    const { data, error } = await supabase
+      .from('community_arts')
+      .select(`
+        id,
+        user_id,
+        image_url,
+        prompt,
+        is_shared,
+        created_at,
+        updated_at
+      `)
+      .eq('user_id', currentUser.id)
+      .gte('created_at', isoDate)
+      .order('created_at', { ascending: false })
+      .limit(50); // Limitar a 50 para performance
+
+    if (error) {
+      console.error('Erro ao buscar artes recentes:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Mapear dados para o formato esperado
+    const recentArts: CommunityArt[] = data.map((art: any) => ({
+      id: art.id,
+      user_id: art.user_id,
+      image_url: art.image_url,
+      prompt: art.prompt,
+      is_shared: art.is_shared,
+      created_at: art.created_at,
+      updated_at: art.updated_at
+    }));
+
+    return recentArts;
   } catch (error) {
-    console.error('Erro ao buscar artes do usuário:', error);
-    return { arts: [], total: 0 };
+    console.error('Erro ao buscar artes recentes:', error);
+    return [];
   }
 }
 

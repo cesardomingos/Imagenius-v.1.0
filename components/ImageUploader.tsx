@@ -107,7 +107,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full space-y-4">
+    <div className="flex flex-col items-center justify-center w-full space-y-4" data-tour="upload">
       {preview && (
         <div className="relative w-full max-w-md rounded-2xl overflow-hidden border-2 border-indigo-200 dark:border-indigo-700 shadow-lg">
           <img 

@@ -276,6 +276,14 @@ export async function signUp(
         setSecureItem('genius_user', JSON.stringify(userProfile));
         setItem('genius_credits', (profile?.credits || 15).toString());
 
+        // Track analytics
+        try {
+          const { analyticsEvents } = await import('../utils/analytics');
+          analyticsEvents.userSignedUp('email');
+        } catch (e) {
+          // Analytics não disponível, continuar normalmente
+        }
+
         return { user: userProfile, error: null };
       }
     }
