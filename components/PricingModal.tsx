@@ -86,22 +86,22 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
       onClose={onClose}
       size="xl"
       showCloseButton={false}
-      className="p-0 flex flex-col"
+      className="p-0 flex flex-col relative"
     >
+      {/* Botão de Fechar - Posicionado no topo direito do modal */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center rounded-xl bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-800 backdrop-blur-sm text-slate-900 dark:text-white shadow-lg transition-all hover:scale-110 active:scale-95"
+        aria-label="Fechar"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden h-full min-h-0">
           {/* Banner Lateral */}
           <div className="lg:col-span-4 bg-slate-900 p-6 sm:p-8 md:p-10 lg:p-12 flex flex-col justify-between text-white relative overflow-hidden min-h-[200px] sm:min-h-[300px] lg:min-h-full lg:h-full">
-            {/* Botão de Fechar - Posicionado no topo direito da coluna azul */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 z-20 w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-all hover:scale-110 active:scale-95"
-              aria-label="Fechar"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
 
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
             

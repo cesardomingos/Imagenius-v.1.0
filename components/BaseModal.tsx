@@ -72,13 +72,21 @@ const BaseModal: React.FC<BaseModalProps> = ({
       className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-4 pt-16 md:pt-4"
       onClick={(e) => {
         // Fechar ao clicar no overlay (fora do modal)
+        // Se o clique foi no container principal (não no conteúdo do modal)
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
       {/* Overlay com backdrop blur */}
-      <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm" />
+      <div 
+        className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm"
+        onClick={(e) => {
+          // Fechar ao clicar no overlay
+          e.stopPropagation();
+          onClose();
+        }}
+      />
 
       {/* Modal Content */}
       <div
@@ -93,7 +101,10 @@ const BaseModal: React.FC<BaseModalProps> = ({
           animate-in fade-in zoom-in-95 duration-200
           ${className}
         `}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          // Prevenir que o clique dentro do modal feche o modal
+          e.stopPropagation();
+        }}
       >
         {/* Header */}
         {(title || showCloseButton) && (
