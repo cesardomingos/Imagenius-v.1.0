@@ -165,7 +165,6 @@ const UseCasesModal: React.FC<UseCasesModalProps> = ({ isOpen, onClose, onSelect
             ))}
           </div>
         </div>
-        </div>
       </div>
     </BaseModal>
   );
