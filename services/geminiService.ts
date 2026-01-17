@@ -38,15 +38,30 @@ async function retryWithBackoff<T>(
     } catch (error: any) {
       lastError = error;
       
-      // Não retry em erros 4xx (client errors)
-      if (error.status >= 400 && error.status < 500 && error.status !== 429) {
+      // Não retry em erros 4xx (client errors) - exceto 429 (rate limit)
+      const status = error?.status || error?.statusCode;
+      if (status && status >= 400 && status < 500 && status !== 429) {
         throw error;
       }
       
-      if (attempt < maxRetries - 1) {
-        const delay = initialDelay * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      // Não retry em erros de autenticação (401)
+      if (status === 401) {
+        throw error;
       }
+      
+      // Não retry em erros de validação (400)
+      if (status === 400) {
+        throw error;
+      }
+      
+      // Se for a última tentativa, lançar o erro
+      if (attempt >= maxRetries - 1) {
+        throw error;
+      }
+      
+      // Aguardar antes de tentar novamente
+      const delay = initialDelay * Math.pow(2, attempt);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
@@ -161,11 +176,15 @@ export async function generateCoherentImage(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       
+      // Criar erro com status para que retryWithBackoff possa tratá-lo corretamente
+      const error: any = new Error(errorData.error || errorData.message || `Erro ao gerar imagem: ${response.statusText}`);
+      error.status = response.status;
+      
       if (response.status === 429) {
-        throw new Error('Limite de requisições excedido. Aguarde um momento antes de tentar novamente.');
+        error.message = 'Limite de requisições excedido. Aguarde um momento antes de tentar novamente.';
       }
       
-      throw new Error(errorData.error || errorData.message || `Erro ao gerar imagem: ${response.statusText}`);
+      throw error;
     }
 
     const data = await response.json();

@@ -235,7 +235,7 @@ const App: React.FC = () => {
   }, [isOnline, wasOffline]);
 
   // Função para carregar histórico de artes do usuário
-  const loadUserArts = useCallback(async (page: number = 1) => {
+  const loadUserArts = useCallback(async (page: number = 1, skipIfProcessing: boolean = true) => {
     // Só carregar se o usuário estiver logado
     if (!currentUser) {
       return;
@@ -251,21 +251,28 @@ const App: React.FC = () => {
         timestamp: new Date(art.created_at).getTime()
       }));
       
-      if (page === 1) {
-        // Não sobrescrever imagens que estão sendo geradas
-        if (!isProcessing) {
-          setGeneratedImages(convertedImages);
-        } else {
-          // Mesclar com imagens já geradas na sessão atual
-          setGeneratedImages(prev => {
+      // Usar setState com função para acessar o estado atual
+      setGeneratedImages(prev => {
+        if (page === 1) {
+          // Não sobrescrever imagens que estão sendo geradas se skipIfProcessing for true
+          // Verificar se há imagens com timestamp muito recente (últimos 30 segundos) = provavelmente sendo geradas
+          const recentImages = prev.filter(img => {
+            const age = Date.now() - img.timestamp;
+            return age < 30000; // 30 segundos
+          });
+          
+          if (skipIfProcessing && recentImages.length > 0) {
+            // Mesclar com imagens já geradas na sessão atual
             const existingIds = new Set(prev.map(img => img.id));
             const newImages = convertedImages.filter(img => !existingIds.has(img.id));
             return [...prev, ...newImages];
-          });
+          } else {
+            return convertedImages;
+          }
+        } else {
+          return [...prev, ...convertedImages];
         }
-      } else {
-        setGeneratedImages(prev => [...prev, ...convertedImages]);
-      }
+      });
       
       setGalleryTotal(result.total);
       setGalleryPage(page);
@@ -279,7 +286,7 @@ const App: React.FC = () => {
         });
       }
     }
-  }, [galleryPageSize, currentUser, isProcessing]);
+  }, [galleryPageSize, currentUser]);
 
   // Migrar dados sensíveis para sessionStorage na inicialização
   useEffect(() => {
@@ -1016,7 +1023,7 @@ const App: React.FC = () => {
           // Só recarregar se não estiver processando (para não interferir com geração em andamento)
           if (currentUser && !isProcessing) {
             setGalleryPage(1);
-            loadUserArts(1);
+            loadUserArts(1, true);
           }
         }} 
         credits={credits}
@@ -1539,7 +1546,7 @@ const App: React.FC = () => {
                   <div className="flex gap-3">
                     {currentUser && !isProcessing && (
                       <button 
-                        onClick={() => loadUserArts(1)} 
+                        onClick={() => loadUserArts(1, false)} 
                         className="bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 px-6 py-5 rounded-[1.5rem] font-black transition-all shadow-lg hover:-translate-y-1 active:scale-95 flex items-center gap-2"
                         title="Atualizar histórico"
                       >
