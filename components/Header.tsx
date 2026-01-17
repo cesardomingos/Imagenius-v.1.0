@@ -28,13 +28,20 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Usar useRef para rastrear o último user ID carregado e evitar loops
+  const lastLoadedUserId = React.useRef<string | null>(null);
+  
   useEffect(() => {
-    if (currentUser) {
+    // Só carregar achievements se o usuário mudou (comparando IDs)
+    if (currentUser && currentUser.id !== lastLoadedUserId.current) {
+      lastLoadedUserId.current = currentUser.id;
       loadUserAchievements();
-    } else {
+    } else if (!currentUser) {
+      lastLoadedUserId.current = null;
       setUserAchievements([]);
     }
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]); // Só observar mudanças no ID do usuário, não no objeto inteiro
 
   const loadUserAchievements = async () => {
     try {

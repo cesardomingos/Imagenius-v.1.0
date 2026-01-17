@@ -294,8 +294,14 @@ const App: React.FC = () => {
   }, []);
 
   // Carrega usuário, créditos e histórico de artes iniciais
+  // Usar useRef para garantir que só execute uma vez na montagem
+  const hasLoadedInitialData = React.useRef(false);
   useEffect(() => {
+    // Só executar uma vez na montagem do componente
+    if (hasLoadedInitialData.current) return;
+    
     const loadUser = async () => {
+      hasLoadedInitialData.current = true;
       const user = await getCurrentUser();
       setCurrentUser(user);
       const currentCredits = await fetchUserCredits();
@@ -303,7 +309,7 @@ const App: React.FC = () => {
       
       // Carregar histórico de artes se o usuário estiver logado
       if (user) {
-        loadUserArts();
+        loadUserArts(1, false);
         
         // Verificar se precisa de consentimento de privacidade
         const consentCheck = await checkPrivacyConsent();
@@ -314,7 +320,8 @@ const App: React.FC = () => {
       }
     };
     loadUser();
-  }, [loadUserArts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Array vazio - só executa uma vez na montagem
 
   // Iniciar tour na primeira visita
   useEffect(() => {
