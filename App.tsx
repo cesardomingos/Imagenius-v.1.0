@@ -1167,6 +1167,7 @@ const App: React.FC = () => {
             
             {step === 'mode_selection' && (
               <div className="space-y-6 sm:space-y-8 md:space-y-10 animate-in fade-in duration-700">
+                {/* Hero Section */}
                 <div className="text-center space-y-3 sm:space-y-4 md:space-y-5">
                   <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black text-slate-900 dark:text-white tracking-tighter px-2 sm:px-4">
                     Crie imagens que mantêm o mesmo estilo. <span className="text-genius-gradient">Sempre.</span>
@@ -1188,41 +1189,36 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Template Selector */}
-                <div data-tour="templates">
-                  <TemplateSelector 
-                    onSelectTemplate={handleTemplateSelection}
-                  />
+                {/* Botões de Tutorial e Exemplos */}
+                <div className="flex justify-center gap-3 sm:gap-4 flex-wrap">
+                  <button
+                    onClick={() => setIsTutorialOpen(true)}
+                    className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border-2 border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span>Como funciona a Preservação de DNA?</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setIsUseCasesOpen(true)}
+                    className="group flex items-center gap-3 px-6 py-4 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border-2 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 text-purple-700 dark:text-purple-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <span>Exemplos de Uso</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
                 </div>
-                
+
+                {/* Botões Preservar DNA e Fundir Ideias */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-8 px-4 sm:px-0" data-tour="mode-selection">
-                  {/* Botões de Tutorial e Exemplos */}
-                  <div className="md:col-span-2 flex justify-center gap-3 sm:gap-4 flex-wrap">
-                    <button
-                      onClick={() => setIsTutorialOpen(true)}
-                      className="group flex items-center gap-3 px-6 py-4 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border-2 border-indigo-200 dark:border-indigo-700 hover:border-indigo-300 dark:hover:border-indigo-600 text-indigo-700 dark:text-indigo-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
-                    >
-                      <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                      <span>Como funciona a Preservação de DNA?</span>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => setIsUseCasesOpen(true)}
-                      className="group flex items-center gap-3 px-6 py-4 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 border-2 border-purple-200 dark:border-purple-700 hover:border-purple-300 dark:hover:border-purple-600 text-purple-700 dark:text-purple-300 font-bold rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl"
-                    >
-                      <svg className="w-6 h-6 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      <span>Exemplos de Uso</span>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                  </div>
                   <Tooltip 
                     content="Use esta opção quando quiser criar múltiplas imagens mantendo exatamente o mesmo estilo visual. Ideal para manter identidade de marca, criar variações de um produto ou gerar conteúdo consistente."
                     position="top"
@@ -1241,14 +1237,23 @@ const App: React.FC = () => {
 
                   <button 
                     onClick={() => handleModeSelection('studio')}
-                    className="group relative p-6 sm:p-8 md:p-10 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[2.5rem] bg-slate-900 dark:bg-slate-950 border-2 border-transparent hover:border-indigo-400 dark:hover:border-indigo-500 transition-all text-left hover:shadow-2xl hover:shadow-indigo-500/20 dark:hover:shadow-indigo-500/30"
+                    disabled={true}
+                    className="group relative p-6 sm:p-8 md:p-10 rounded-[1.5rem] sm:rounded-[2rem] md:rounded-[2.5rem] bg-slate-900 dark:bg-slate-950 border-2 border-transparent opacity-50 cursor-not-allowed transition-all text-left"
                   >
-                    <div className="w-16 h-16 bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-lg flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500">
+                    <div className="w-16 h-16 bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-lg flex items-center justify-center mb-8">
                       <svg className="w-8 h-8 text-white dark:text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                     </div>
                     <h3 className="text-2xl font-black text-white dark:text-slate-100 mb-3">Fundir Ideias</h3>
                     <p className="text-slate-400 dark:text-slate-300 font-medium leading-relaxed">O laboratório do alquimista. Misture o DNA de várias referências (até 5) para criar algo inédito, unindo estilos, luzes e contextos.</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mt-3">Em breve</p>
                   </button>
+                </div>
+
+                {/* Template Selector */}
+                <div data-tour="templates">
+                  <TemplateSelector 
+                    onSelectTemplate={handleTemplateSelection}
+                  />
                 </div>
 
                 {/* Seção de Comparação */}

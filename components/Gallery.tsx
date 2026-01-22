@@ -6,6 +6,7 @@ import Tooltip from './Tooltip';
 import SocialShare from './SocialShare';
 import { ImageCardSkeleton } from './SkeletonLoader';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { analyticsEvents } from '../utils/analytics';
 
 interface GalleryProps {
   images: GeneratedImage[];
@@ -74,16 +75,36 @@ const Gallery: React.FC<GalleryProps> = ({
     }
   );
 
-  const downloadImage = (url: string, id: string) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `generated-${id}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Track analytics
-    analyticsEvents.imageDownloaded(id);
+  const downloadImage = async (url: string, id: string) => {
+    try {
+      // Fazer fetch da imagem para criar um blob e forçar download
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `generated-${id}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Limpar o blob URL após o download
+      window.URL.revokeObjectURL(blobUrl);
+      
+      // Track analytics
+      analyticsEvents.imageDownloaded(id);
+    } catch (error) {
+      console.error('Erro ao fazer download da imagem:', error);
+      // Fallback: tentar download direto (pode abrir no navegador se CORS bloquear)
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `generated-${id}.png`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   // Verificar se a imagem selecionada já está compartilhada

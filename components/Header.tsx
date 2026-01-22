@@ -179,8 +179,8 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
               </Tooltip>
             )}
 
-            {/* Galeria Button */}
-            {hasImages && (
+            {/* Galeria Button - Sempre visível quando logado */}
+            {currentUser && (
               <Tooltip content="Ver todas as suas imagens geradas">
                 <button 
                   onClick={goToGallery}
@@ -317,12 +317,12 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
 
     {/* Mobile Bottom Navigation Bar */}
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-700 z-[100] safe-area-inset-bottom" role="navigation" aria-label="Navegação mobile">
-      <div className="flex items-center justify-around h-16 px-1" role="list">
+      <div className="flex items-center justify-between h-16 px-2" role="list">
         {/* Home */}
         <Tooltip content="Voltar para a página inicial" position="top">
           <button
             onClick={handleLogoClick}
-            className="flex flex-col items-center justify-center gap-0.5 px-1.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex-1 min-w-0"
+            className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex-1 min-w-0"
             aria-label="Voltar para a página inicial"
             role="listitem"
           >
@@ -333,32 +333,28 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
           </button>
         </Tooltip>
 
-        {/* Galeria */}
-        <Tooltip content={hasImages ? "Ver todas as suas imagens geradas" : "Você ainda não tem imagens. Gere algumas primeiro!"} position="top">
-          <button
-            onClick={goToGallery}
-            disabled={!hasImages}
-            className={`flex flex-col items-center justify-center gap-0.5 px-1.5 py-2 rounded-xl transition-all flex-1 min-w-0 ${
-              hasImages 
-                ? 'text-indigo-600 dark:text-indigo-400' 
-                : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-            }`}
-            aria-label={hasImages ? "Ver galeria de imagens geradas" : "Galeria indisponível. Gere imagens primeiro."}
-            aria-disabled={!hasImages}
-            role="listitem"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className="text-[9px] font-black uppercase tracking-wider">Galeria</span>
-          </button>
-        </Tooltip>
+        {/* Galeria - Sempre visível quando logado */}
+        {currentUser && (
+          <Tooltip content="Ver todas as suas imagens geradas" position="top">
+            <button
+              onClick={goToGallery}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl transition-all flex-1 min-w-0 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+              aria-label="Ver galeria de imagens geradas"
+              role="listitem"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-[9px] font-black uppercase tracking-wider">Galeria</span>
+            </button>
+          </Tooltip>
+        )}
 
         {/* Gerar Novo - Central e Destaque */}
         <Tooltip content="Iniciar um novo projeto. Isso limpará todas as imagens e prompts atuais." position="top">
           <button
             onClick={onReset}
-            className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-2xl shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all active:scale-95 mx-1"
+            className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-2xl shadow-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all active:scale-95 mx-2"
             aria-label="Iniciar um novo projeto"
             role="listitem"
           >
@@ -381,7 +377,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
                 onOpenAuth();
               }
             }}
-            className="flex flex-col items-center justify-center gap-0.5 px-1.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all relative flex-1 min-w-0"
+            className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all relative flex-1 min-w-0"
             aria-label={currentUser ? `Abrir perfil do usuário ${currentUser.email}` : "Fazer login ou criar uma conta"}
             aria-haspopup="dialog"
             role="listitem"
@@ -405,7 +401,7 @@ const Header: React.FC<HeaderProps> = ({ onReset, hasImages, goToGallery, credit
           <Tooltip content="Abrir menu de configurações" position="top">
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="flex flex-col items-center justify-center gap-0.5 px-1.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all w-full"
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all w-full"
               aria-label="Abrir menu de configurações"
               aria-expanded={isSettingsOpen}
               aria-haspopup="menu"
