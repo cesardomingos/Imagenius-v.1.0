@@ -1,18 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getCurrentUser } from './supabaseService';
-
-const getSupabaseClient = (): SupabaseClient | null => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (supabaseUrl && supabaseAnonKey) {
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-  
-  return null;
-};
-
-const supabase = getSupabaseClient();
+import { getCurrentUser, getSupabaseClient } from './supabaseService';
 
 /**
  * Obtém o código de referência do usuário atual
@@ -64,6 +50,7 @@ export async function getReferralStats(): Promise<{
   milestones: Array<{ threshold: number; reached: boolean; reward: number }>;
 } | null> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) return null;
 
     const user = await getCurrentUser();

@@ -4,19 +4,39 @@ import { UserProfile } from "../types";
 import { CURRENT_POLICY_VERSION } from "../config/privacyPolicy";
 import { setItem, getItem, removeItem, setSecureItem, getSecureItem, removeSecureItem } from "../utils/storage";
 
-// Criar cliente Supabase (usa variáveis de ambiente ou fallback para mock)
-const getSupabaseClient = (): SupabaseClient | null => {
+// Singleton do cliente Supabase - garante apenas uma instância
+let supabaseInstance: SupabaseClient | null = null;
+
+/**
+ * Obtém a instância singleton do cliente Supabase
+ * Garante que apenas uma instância seja criada para evitar múltiplos GoTrueClient
+ */
+export function getSupabaseClient(): SupabaseClient | null {
+  // Se já existe uma instância, retornar ela
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   if (supabaseUrl && supabaseAnonKey) {
-    return createClient(supabaseUrl, supabaseAnonKey);
+    // Criar instância única com configurações padrão
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false
+      }
+    });
+    return supabaseInstance;
   }
   
   // Se não houver variáveis de ambiente, retorna null para usar mock
   return null;
-};
+}
 
+// Instância inicial (lazy initialization)
 const supabase = getSupabaseClient();
 
 /**

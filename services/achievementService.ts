@@ -1,25 +1,12 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AchievementId, UserAchievement, ACHIEVEMENTS, AchievementLevel, AchievementProgress } from '../types/achievements';
-import { getCurrentUser } from './supabaseService';
-
-const getSupabaseClient = (): SupabaseClient | null => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (supabaseUrl && supabaseAnonKey) {
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-  
-  return null;
-};
-
-const supabase = getSupabaseClient();
+import { getCurrentUser, getSupabaseClient } from './supabaseService';
 
 /**
  * Verifica se o usuário já possui uma conquista (qualquer nível)
  */
 export async function hasAchievement(achievementId: AchievementId): Promise<boolean> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) return false;
 
     const user = await getCurrentUser();
@@ -49,6 +36,7 @@ export async function hasAchievement(achievementId: AchievementId): Promise<bool
  */
 export async function getUserAchievementLevel(achievementId: AchievementId): Promise<AchievementLevel | null> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) return null;
 
     const user = await getCurrentUser();
@@ -83,6 +71,7 @@ export async function unlockAchievement(
   progress: number = 0
 ): Promise<{ success: boolean; achievement?: UserAchievement; error?: string; isUpgrade?: boolean }> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return { success: false, error: 'Supabase não configurado' };
     }
@@ -208,6 +197,7 @@ export async function unlockAchievement(
  */
 async function addCreditsReward(amount: number): Promise<void> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase || amount <= 0) return;
 
     const user = await getCurrentUser();
@@ -242,6 +232,7 @@ async function addCreditsReward(amount: number): Promise<void> {
  */
 export async function getUserAchievements(): Promise<UserAchievement[]> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) return [];
 
     const user = await getCurrentUser();
@@ -278,6 +269,7 @@ export async function getUserAchievements(): Promise<UserAchievement[]> {
  */
 export async function getAchievementProgress(achievementId: AchievementId): Promise<AchievementProgress> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return {
         achievementId,

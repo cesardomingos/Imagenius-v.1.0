@@ -1,18 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '../services/supabaseService';
 import { cachedRequest, cacheHelpers } from '../utils/requestCache';
-
-function getSupabaseClient() {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
 
 interface SocialProofSectionProps {
   className?: string;

@@ -1,26 +1,6 @@
 
 import { ImageData, TemplateId } from "../types";
-import { getCurrentUser } from "./supabaseService";
-import { createClient } from "@supabase/supabase-js";
-
-/**
- * Obtém o cliente Supabase para fazer requisições autenticadas
- */
-function getSupabaseClient() {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase não configurado');
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    }
-  });
-}
+import { getCurrentUser, getSupabaseClient } from "./supabaseService";
 
 /**
  * Retry logic com exponential backoff
@@ -59,9 +39,15 @@ async function retryWithBackoff<T>(
         throw error;
       }
       
-      // Aguardar antes de tentar novamente
-      const delay = initialDelay * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // Para erros 503 (modelo sobrecarregado), usar delay maior
+      const isOverloaded = status === 503 || error?.retryable === true;
+      const baseDelay = isOverloaded ? 3000 : initialDelay; // 3 segundos para sobrecarga
+      const delay = baseDelay * Math.pow(2, attempt);
+      
+      // Delay máximo de 30 segundos
+      const finalDelay = Math.min(delay, 30000);
+      
+      await new Promise(resolve => setTimeout(resolve, finalDelay));
     }
   }
   
@@ -114,13 +100,50 @@ export async function suggestPrompts(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      let errorData: any;
+      try {
+        const responseText = await response.text();
+        // Tentar parsear como JSON
+        errorData = JSON.parse(responseText);
+        // Se o erro estiver aninhado em uma string JSON, tentar parsear novamente
+        if (typeof errorData.error === 'string') {
+          try {
+            errorData = { ...errorData, ...JSON.parse(errorData.error) };
+          } catch {
+            // Ignorar se não conseguir parsear
+          }
+        }
+      } catch {
+        errorData = { message: response.statusText };
+      }
       
       if (response.status === 429) {
         throw new Error('Limite de requisições excedido. Aguarde um momento antes de tentar novamente.');
       }
       
-      throw new Error(errorData.error || errorData.message || `Erro ao sugerir prompts: ${response.statusText}`);
+      // Tratar erro 503 - Modelo sobrecarregado
+      if (response.status === 503 || errorData.code === 503 || errorData.status === 'UNAVAILABLE') {
+        const error: any = new Error('O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.');
+        error.status = 503;
+        error.retryable = true;
+        throw error;
+      }
+      
+      // Tratar erro de recursos insuficientes
+      const errorMessage = errorData.error?.message || errorData.message || errorData.error || response.statusText;
+      if (errorMessage.includes('compute resources') || errorMessage.includes('not having enough') || errorMessage.includes('overloaded')) {
+        const error: any = new Error('Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.');
+        error.status = 503;
+        error.retryable = true;
+        throw error;
+      }
+      
+      // Tratar erro 500 (erro interno do servidor)
+      if (response.status === 500) {
+        throw new Error('Erro interno do servidor. Por favor, tente novamente em alguns instantes.');
+      }
+      
+      throw new Error(errorMessage || `Erro ao sugerir prompts: ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -174,14 +197,43 @@ export async function generateCoherentImage(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
+      let errorData: any;
+      try {
+        const responseText = await response.text();
+        // Tentar parsear como JSON
+        errorData = JSON.parse(responseText);
+        // Se o erro estiver aninhado em uma string JSON, tentar parsear novamente
+        if (typeof errorData.error === 'string') {
+          try {
+            errorData = { ...errorData, ...JSON.parse(errorData.error) };
+          } catch {
+            // Ignorar se não conseguir parsear
+          }
+        }
+      } catch {
+        errorData = { message: response.statusText };
+      }
       
       // Criar erro com status para que retryWithBackoff possa tratá-lo corretamente
-      const error: any = new Error(errorData.error || errorData.message || `Erro ao gerar imagem: ${response.statusText}`);
+      const errorMessage = errorData.error?.message || errorData.message || errorData.error || `Erro ao gerar imagem: ${response.statusText}`;
+      const error: any = new Error(errorMessage);
       error.status = response.status;
       
       if (response.status === 429) {
         error.message = 'Limite de requisições excedido. Aguarde um momento antes de tentar novamente.';
+      }
+      
+      // Tratar erro 503 - Modelo sobrecarregado
+      if (response.status === 503 || errorData.code === 503 || errorData.status === 'UNAVAILABLE') {
+        error.message = 'O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
+        error.retryable = true;
+      }
+      
+      // Tratar erro de modelo sobrecarregado na mensagem
+      if (errorMessage.includes('overloaded') || errorMessage.includes('UNAVAILABLE')) {
+        error.message = 'O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
+        error.status = 503;
+        error.retryable = true;
       }
       
       throw error;

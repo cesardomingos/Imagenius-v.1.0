@@ -12,6 +12,8 @@ interface CacheEntry<T> {
 
 const CACHE_PREFIX = 'img_cache_';
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutos por padrão
+const MAX_STORAGE_SIZE = 4 * 1024 * 1024; // 4MB (deixar margem de segurança)
+const MAX_ITEM_SIZE = 500 * 1024; // 500KB por item máximo
 
 /**
  * Gera uma chave de cache baseada no tipo e parâmetros
@@ -22,10 +24,86 @@ function generateCacheKey(type: string, params?: Record<string, any>): string {
 }
 
 /**
+ * Calcula o tamanho aproximado de uma string em bytes
+ */
+function getStringSize(str: string): number {
+  return new Blob([str]).size;
+}
+
+/**
+ * Calcula o tamanho total usado no storage
+ */
+function getStorageSize(storage: Storage): number {
+  let total = 0;
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i);
+    if (key) {
+      const value = storage.getItem(key) || '';
+      total += getStringSize(key) + getStringSize(value);
+    }
+  }
+  return total;
+}
+
+/**
+ * Limpa entradas antigas do cache para liberar espaço
+ * Remove as entradas mais antigas primeiro
+ */
+function clearOldCacheEntries(storage: Storage, targetSize: number = MAX_STORAGE_SIZE * 0.5): void {
+  try {
+    const entries: Array<{ key: string; timestamp: number; size: number }> = [];
+    
+    // Coletar todas as entradas de cache
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith(CACHE_PREFIX)) {
+        const value = storage.getItem(key);
+        if (value) {
+          try {
+            const entry: CacheEntry<any> = JSON.parse(value);
+            const size = getStringSize(key) + getStringSize(value);
+            entries.push({ key, timestamp: entry.timestamp, size });
+          } catch {
+            // Se não conseguir parsear, remover
+            storage.removeItem(key);
+          }
+        }
+      }
+    }
+    
+    // Ordenar por timestamp (mais antigas primeiro)
+    entries.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Remover entradas antigas até atingir o tamanho alvo
+    let currentSize = getStorageSize(storage);
+    for (const entry of entries) {
+      if (currentSize <= targetSize) break;
+      storage.removeItem(entry.key);
+      currentSize -= entry.size;
+    }
+  } catch (error) {
+    console.error('Erro ao limpar entradas antigas do cache:', error);
+  }
+}
+
+/**
  * Verifica se uma entrada de cache ainda é válida
  */
 function isCacheValid(entry: CacheEntry<any>): boolean {
   return Date.now() < entry.expiresAt;
+}
+
+/**
+ * Verifica se os dados são muito grandes para cache
+ * Retorna true se os dados devem ser rejeitados
+ */
+function isDataTooLarge<T>(data: T): boolean {
+  try {
+    const dataString = JSON.stringify(data);
+    return getStringSize(dataString) > MAX_ITEM_SIZE;
+  } catch {
+    return true; // Se não conseguir serializar, considerar muito grande
+  }
 }
 
 /**
@@ -41,24 +119,65 @@ export function setCache<T>(
   ttl: number = DEFAULT_TTL,
   persistent: boolean = true
 ): void {
+  // Verificar se os dados são muito grandes antes de tentar salvar
+  if (isDataTooLarge(data)) {
+    console.warn(`Dados muito grandes para cache, não serão salvos:`, key);
+    return;
+  }
+  
   const entry: CacheEntry<T> = {
     data,
     timestamp: Date.now(),
     expiresAt: Date.now() + ttl
   };
 
+  const entryString = JSON.stringify(entry);
+  const entrySize = getStringSize(entryString);
+  
+  // Verificar novamente o tamanho após serialização
+  if (entrySize > MAX_ITEM_SIZE) {
+    console.warn(`Item de cache muito grande após serialização (${entrySize} bytes), não será salvo:`, key);
+    return;
+  }
+
   try {
     const storage = persistent ? localStorage : sessionStorage;
-    storage.setItem(key, JSON.stringify(entry));
-  } catch (error) {
-    // Se o storage estiver cheio, limpar cache antigo
+    
+    // Verificar tamanho do storage antes de salvar
+    const currentSize = getStorageSize(storage);
+    if (currentSize + entrySize > MAX_STORAGE_SIZE) {
+      console.warn('Storage próximo do limite, limpando cache antigo...');
+      clearOldCacheEntries(storage, MAX_STORAGE_SIZE * 0.5);
+    }
+    
+    storage.setItem(key, entryString);
+  } catch (error: any) {
+    // Se o storage estiver cheio, limpar cache antigo mais agressivamente
     console.warn('Erro ao salvar no cache, limpando cache antigo:', error);
-    clearExpiredCache();
+    
     try {
       const storage = persistent ? localStorage : sessionStorage;
-      storage.setItem(key, JSON.stringify(entry));
-    } catch (retryError) {
-      console.error('Erro ao salvar no cache após limpeza:', retryError);
+      
+      // Limpar cache expirado primeiro
+      clearExpiredCache();
+      
+      // Se ainda não conseguir, limpar entradas antigas
+      clearOldCacheEntries(storage, MAX_STORAGE_SIZE * 0.3);
+      
+      // Tentar novamente
+      storage.setItem(key, entryString);
+    } catch (retryError: any) {
+      // Se ainda falhar, tentar limpar todo o cache do tipo
+      console.error('Erro ao salvar no cache após limpeza, limpando todo o cache:', retryError);
+      try {
+        const storage = persistent ? localStorage : sessionStorage;
+        clearAllCache();
+        // Tentar uma última vez
+        storage.setItem(key, entryString);
+      } catch (finalError) {
+        console.error('Erro crítico ao salvar no cache:', finalError);
+        // Não lançar erro - apenas logar e continuar sem cache
+      }
     }
   }
 }

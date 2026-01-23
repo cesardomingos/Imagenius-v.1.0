@@ -27,6 +27,7 @@ import { useKeyboardShortcuts, useKeyboardHelp, type KeyboardShortcut } from './
 import { savePromptToHistory } from './services/promptHistoryService';
 import { useNetworkStatus } from './utils/networkStatus';
 import { migrateSensitiveData } from './utils/storage';
+import { clearExpiredCache } from './utils/requestCache';
 import AuthModal from './components/AuthModal';
 import Toast, { ToastType } from './components/Toast';
 import TutorialModal from './components/TutorialModal';
@@ -291,6 +292,8 @@ const App: React.FC = () => {
   // Migrar dados sensíveis para sessionStorage na inicialização
   useEffect(() => {
     migrateSensitiveData();
+    // Limpar cache expirado na inicialização para evitar problemas de quota
+    clearExpiredCache();
   }, []);
 
   // Carrega usuário, créditos e histórico de artes iniciais

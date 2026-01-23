@@ -1,19 +1,5 @@
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getCurrentUser } from './supabaseService';
-
-const getSupabaseClient = (): SupabaseClient | null => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (supabaseUrl && supabaseAnonKey) {
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-  
-  return null;
-};
-
-const supabase = getSupabaseClient();
+import { getCurrentUser, getSupabaseClient } from './supabaseService';
 
 export interface LeaderboardEntry {
   userId: string;
@@ -37,6 +23,7 @@ export async function getLeaderboard(
   limit: number = 10
 ): Promise<LeaderboardEntry[]> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return [];
     }

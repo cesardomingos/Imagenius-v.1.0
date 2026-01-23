@@ -1,5 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getCurrentUser } from './supabaseService';
+import { getCurrentUser, getSupabaseClient } from './supabaseService';
 import { cachedRequest, cacheHelpers } from '../utils/requestCache';
 
 // Interface para arte da comunidade
@@ -16,20 +15,6 @@ export interface CommunityArt {
   user_liked?: boolean;
 }
 
-// Criar cliente Supabase (reutiliza a mesma lógica do supabaseService)
-const getSupabaseClient = (): SupabaseClient | null => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (supabaseUrl && supabaseAnonKey) {
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-  
-  return null;
-};
-
-const supabase = getSupabaseClient();
-
 /**
  * Busca artes compartilhadas da comunidade
  * @param limit - Número máximo de artes a retornar (padrão: 20)
@@ -45,6 +30,7 @@ export async function fetchCommunityArts(
   return cachedRequest(
     async () => {
       try {
+        const supabase = getSupabaseClient();
         if (!supabase) {
           console.warn('Supabase não configurado. Retornando array vazio.');
           return [];
@@ -151,6 +137,7 @@ export async function toggleLike(
   artId: string
 ): Promise<{ success: boolean; likesCount: number; error?: string }> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return { success: false, likesCount: 0, error: 'Supabase não configurado' };
     }
@@ -231,6 +218,7 @@ export async function checkIfArtIsShared(
   imageUrl: string
 ): Promise<{ success: boolean; isShared: boolean; artId?: string; error?: string }> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return { success: false, isShared: false, error: 'Supabase não configurado' };
     }
@@ -274,6 +262,7 @@ export async function shareArt(
   prompt: string
 ): Promise<{ success: boolean; artId?: string; error?: string }> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return { success: false, error: 'Supabase não configurado' };
     }
@@ -334,6 +323,7 @@ export async function unshareArt(
   artId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return { success: false, error: 'Supabase não configurado' };
     }
@@ -372,6 +362,7 @@ export async function saveUserArt(
   prompt: string
 ): Promise<{ success: boolean; artId?: string; error?: string }> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return { success: false, error: 'Supabase não configurado' };
     }
@@ -431,6 +422,7 @@ export async function fetchUserArts(
   return cachedRequest(
     async () => {
       try {
+        const supabase = getSupabaseClient();
         if (!supabase) {
           console.warn('Supabase não configurado. Retornando array vazio.');
           return { arts: [], total: 0 };
@@ -506,6 +498,7 @@ export async function fetchUserArts(
  */
 export async function fetchRecentUserArts(): Promise<CommunityArt[]> {
   try {
+    const supabase = getSupabaseClient();
     if (!supabase) {
       return [];
     }

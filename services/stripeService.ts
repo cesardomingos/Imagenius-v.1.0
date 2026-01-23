@@ -1,28 +1,8 @@
 
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { PricingPlan } from "../types";
-import { getCurrentUser } from './supabaseService';
-import { createClient } from '@supabase/supabase-js';
+import { getCurrentUser, getSupabaseClient } from './supabaseService';
 import { getCSRFToken, validateCSRFToken, refreshCSRFToken } from '../utils/csrf';
-
-// Função helper para obter o cliente Supabase compartilhado
-// Isso garante que usamos a mesma instância que foi usada para autenticação
-function getSupabaseClient() {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase não configurado');
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false
-    }
-  });
-}
 
 // Mapeamento de planos para valores em centavos (BRL)
 // Nota: O Stripe trabalha com valores em centavos (menor unidade da moeda)

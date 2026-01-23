@@ -305,7 +305,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ onClose, onSelectPlan, isPr
                </div>
                <div className="flex items-center gap-3 sm:gap-4 grayscale opacity-40 w-full sm:w-auto justify-center sm:justify-end">
                   <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-4 sm:h-5" />
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/a/a2/Logo_Pix_Brasil.png" alt="PIX" className="h-4 sm:h-5" />
+                  <img src="/Logo Pix Brasil.png" alt="PIX" className="h-4 sm:h-5" />
                </div>
             </div>
           </div>
