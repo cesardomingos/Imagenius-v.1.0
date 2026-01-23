@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { UserProfile } from "../types";
 import { CURRENT_POLICY_VERSION } from "../config/privacyPolicy";
