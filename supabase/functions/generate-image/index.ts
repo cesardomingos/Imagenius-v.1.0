@@ -395,6 +395,51 @@ Interpret the instruction field and create the image accordingly. Maintain visua
 
   } catch (error: any) {
     console.error("Erro na Edge Function:", error);
+    
+    // Detectar erro de WORKER_LIMIT (recursos insuficientes do Supabase)
+    const errorMessage = error.message || error.toString() || "";
+    const errorCode = error.code || "";
+    const isWorkerLimit = errorMessage.includes("WORKER_LIMIT") || 
+                          errorMessage.includes("not having enough compute resources") ||
+                          errorCode === "WORKER_LIMIT";
+    
+    if (isWorkerLimit) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.",
+          code: "WORKER_LIMIT",
+          retryAfter: 30
+        }),
+        { 
+          status: 503, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": "30"
+          } 
+        }
+      );
+    }
+    
+    // Detectar erro de modelo sobrecarregado do Gemini
+    if (errorMessage.includes("overloaded") || errorMessage.includes("UNAVAILABLE") || errorCode === 503) {
+      return new Response(
+        JSON.stringify({ 
+          error: "O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.",
+          code: "MODEL_OVERLOADED",
+          retryAfter: 30
+        }),
+        { 
+          status: 503, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": "30"
+          } 
+        }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: error.message || "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

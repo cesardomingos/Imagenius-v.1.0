@@ -39,13 +39,23 @@ async function retryWithBackoff<T>(
         throw error;
       }
       
-      // Para erros 503 (modelo sobrecarregado), usar delay maior
-      const isOverloaded = status === 503 || error?.retryable === true;
-      const baseDelay = isOverloaded ? 3000 : initialDelay; // 3 segundos para sobrecarga
+      // Para erros 503 (modelo sobrecarregado) ou WORKER_LIMIT, usar delay maior
+      const isOverloaded = status === 503 || error?.retryable === true || error?.code === 'WORKER_LIMIT';
+      const isWorkerLimit = error?.code === 'WORKER_LIMIT' || error?.message?.includes('WORKER_LIMIT');
+      
+      // WORKER_LIMIT precisa de delay ainda maior (60 segundos)
+      let baseDelay = initialDelay;
+      if (isWorkerLimit) {
+        baseDelay = 60000; // 60 segundos para WORKER_LIMIT
+      } else if (isOverloaded) {
+        baseDelay = 5000; // 5 segundos para sobrecarga geral
+      }
+      
       const delay = baseDelay * Math.pow(2, attempt);
       
-      // Delay máximo de 30 segundos
-      const finalDelay = Math.min(delay, 30000);
+      // Delay máximo: 120 segundos para WORKER_LIMIT, 30 segundos para outros
+      const maxDelay = isWorkerLimit ? 120000 : 30000;
+      const finalDelay = Math.min(delay, maxDelay);
       
       await new Promise(resolve => setTimeout(resolve, finalDelay));
     }
@@ -121,16 +131,30 @@ export async function suggestPrompts(
         throw new Error('Limite de requisições excedido. Aguarde um momento antes de tentar novamente.');
       }
       
-      // Tratar erro 503 - Modelo sobrecarregado
-      if (response.status === 503 || errorData.code === 503 || errorData.status === 'UNAVAILABLE') {
-        const error: any = new Error('O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.');
+      // Tratar erro WORKER_LIMIT (recursos insuficientes do Supabase)
+      const errorMessage = errorData.error?.message || errorData.message || errorData.error || response.statusText;
+      if (errorData.code === 'WORKER_LIMIT' || 
+          errorMessage.includes('WORKER_LIMIT') || 
+          errorMessage.includes('not having enough compute resources')) {
+        const error: any = new Error(errorData.error || 'Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.');
         error.status = 503;
+        error.code = 'WORKER_LIMIT';
         error.retryable = true;
+        error.retryAfter = errorData.retryAfter || 60;
         throw error;
       }
       
-      // Tratar erro de recursos insuficientes
-      const errorMessage = errorData.error?.message || errorData.message || errorData.error || response.statusText;
+      // Tratar erro 503 - Modelo sobrecarregado
+      if (response.status === 503 || errorData.code === 503 || errorData.code === 'MODEL_OVERLOADED' || errorData.status === 'UNAVAILABLE') {
+        const error: any = new Error(errorData.error || 'O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.');
+        error.status = 503;
+        error.code = errorData.code || 'MODEL_OVERLOADED';
+        error.retryable = true;
+        error.retryAfter = errorData.retryAfter || 30;
+        throw error;
+      }
+      
+      // Tratar erro de recursos insuficientes (fallback)
       if (errorMessage.includes('compute resources') || errorMessage.includes('not having enough') || errorMessage.includes('overloaded')) {
         const error: any = new Error('Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.');
         error.status = 503;
@@ -221,19 +245,37 @@ export async function generateCoherentImage(
       
       if (response.status === 429) {
         error.message = 'Limite de requisições excedido. Aguarde um momento antes de tentar novamente.';
+        throw error;
+      }
+      
+      // Tratar erro WORKER_LIMIT (recursos insuficientes do Supabase)
+      if (errorData.code === 'WORKER_LIMIT' || 
+          errorMessage.includes('WORKER_LIMIT') || 
+          errorMessage.includes('not having enough compute resources')) {
+        error.message = errorData.error || 'Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
+        error.status = 503;
+        error.code = 'WORKER_LIMIT';
+        error.retryable = true;
+        error.retryAfter = errorData.retryAfter || 60;
+        throw error;
       }
       
       // Tratar erro 503 - Modelo sobrecarregado
-      if (response.status === 503 || errorData.code === 503 || errorData.status === 'UNAVAILABLE') {
-        error.message = 'O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
+      if (response.status === 503 || errorData.code === 503 || errorData.code === 'MODEL_OVERLOADED' || errorData.status === 'UNAVAILABLE') {
+        error.message = errorData.error || 'O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
+        error.status = 503;
+        error.code = errorData.code || 'MODEL_OVERLOADED';
         error.retryable = true;
+        error.retryAfter = errorData.retryAfter || 30;
+        throw error;
       }
       
-      // Tratar erro de modelo sobrecarregado na mensagem
-      if (errorMessage.includes('overloaded') || errorMessage.includes('UNAVAILABLE')) {
-        error.message = 'O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
+      // Tratar erro de modelo sobrecarregado na mensagem (fallback)
+      if (errorMessage.includes('overloaded') || errorMessage.includes('UNAVAILABLE') || errorMessage.includes('compute resources')) {
+        error.message = 'Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.';
         error.status = 503;
         error.retryable = true;
+        throw error;
       }
       
       throw error;

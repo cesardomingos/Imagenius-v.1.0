@@ -216,102 +216,32 @@ serve(async (req) => {
     if (body.templateId) {
       // Mapear templateId para instrução especializada
       const templateInstructions: Record<string, string> = {
-        'company-presentation': `You are a professional corporate presentation designer. 
-Your goal is to create visual content for business presentations that maintains absolute brand consistency.
-Focus on: professional layouts, corporate color schemes, clean typography, business-appropriate imagery.
-The output should be suitable for PowerPoint, Keynote, or Google Slides.
-Maintain the visual DNA of the reference image while adapting to business contexts.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'company-presentation': `Create business presentation visuals maintaining brand consistency. Professional layouts, corporate colors, clean typography. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'pitch-deck': `You are a pitch deck visual specialist. 
-Your goal is to create compelling, investor-ready visuals that tell a story.
-Focus on: bold graphics, data visualization, startup aesthetics, modern design trends.
-The visuals should be attention-grabbing, professional, and suitable for investor presentations.
-Maintain visual consistency across all slides while adapting to different pitch sections.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'pitch-deck': `Create investor-ready pitch deck visuals. Bold graphics, data visualization, startup aesthetics. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'enhance': `You are an image enhancement specialist. 
-Your goal is to improve image quality, resolution, and visual appeal while maintaining the original aesthetic.
-Focus on: upscaling resolution, improving sharpness, enhancing colors, reducing noise, maintaining original style.
-The enhanced image should look like a professional, high-quality version of the original.
-Preserve all original details, colors, and artistic style.
-Themes: [${themesString}].
-Output exactly 2 enhancement prompts per theme in JSON format.`,
+        'enhance': `Enhance image quality: upscale resolution, improve sharpness, enhance colors, reduce noise. Maintain original style. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'restore': `You are a professional image restoration expert. 
-Your goal is to restore damaged, old, or corrupted images to their original quality.
-Focus on: removing scratches, fixing tears, colorizing old photos, removing noise, reconstructing missing parts.
-The restored image should look authentic and natural, as if it was never damaged.
-Maintain historical accuracy and original aesthetic when restoring vintage photos.
-Themes: [${themesString}].
-Output exactly 2 restoration prompts per theme in JSON format.`,
+        'restore': `Restore damaged images: remove scratches, fix tears, colorize old photos, reduce noise. Maintain authenticity. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'ecommerce-product': `You are a professional e-commerce product photographer. 
-Your goal is to create product photos with consistent lighting, background, and style.
-Focus on: professional product photography, clean backgrounds, consistent lighting, high-quality presentation.
-All product photos should maintain the same photographic style for catalog consistency.
-The images should be suitable for online stores, marketplaces, and product listings.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'ecommerce-product': `Create consistent product photos: clean backgrounds, consistent lighting, professional style. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'restaurant-food': `You are a professional food photographer specializing in restaurant marketing.
-Your goal is to create appetizing food photos with consistent styling and lighting.
-Focus on: professional food photography, appetizing presentation, consistent lighting, restaurant branding.
-All food photos should maintain the same photographic style for menu and marketing consistency.
-The images should make the food look delicious and professional.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'restaurant-food': `Create appetizing food photos: professional styling, consistent lighting, restaurant branding. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'social-media-post': `You are a social media visual content creator. 
-Your goal is to create engaging social media posts that maintain visual consistency across a feed.
-Focus on: modern social media aesthetics, platform-appropriate formats, engaging visuals, brand consistency.
-All posts should maintain the same visual identity for a cohesive feed.
-The images should be optimized for Instagram, TikTok, LinkedIn, or other social platforms.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'social-media-post': `Create engaging social media posts with visual consistency. Modern aesthetics, platform-optimized. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'mascot-2d': `You are a 2D character designer specializing in mascots and brand characters.
-Your goal is to create consistent 2D mascot designs that maintain the same character identity.
-Focus on: 2D illustration style, character consistency, brand alignment, versatile poses and expressions.
-All character variations should maintain the same design DNA, proportions, and style.
-The mascot should be suitable for use across various marketing materials and platforms.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'mascot-2d': `Create consistent 2D mascot designs. Maintain character identity, proportions, style. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'mascot-3d': `You are a 3D character designer specializing in mascots and game characters.
-Your goal is to create consistent 3D character designs that maintain the same character identity.
-Focus on: 3D modeling style, character consistency, game-ready assets, various poses and angles.
-All character variations should maintain the same design DNA, proportions, and 3D style.
-The character should be suitable for games, animation, or 3D marketing materials.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`,
+        'mascot-3d': `Create consistent 3D character designs. Maintain character identity, proportions, 3D style. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`,
         
-        'game-concept-art': `You are a professional game concept artist.
-Your goal is to create consistent concept art for games that maintains visual coherence across all assets.
-Focus on: game art style, world-building consistency, character design, environment design, game aesthetics.
-All concept art should maintain the same artistic style and visual language for the game.
-The art should be suitable for game development, pitch presentations, and marketing.
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`
+        'game-concept-art': `Create consistent game concept art. Maintain art style and visual language. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`
       };
       
       systemInstruction = templateInstructions[body.templateId] || 
-        `You are a world-class Visual Director and AI Artist. 
-Your goal is to perform ${isMulti ? 'Idea Fusion (merging dimensions)' : 'DNA Preservation (style coherence)'}.
-I'm a genius, and you are too. Treat every prompt as a masterpiece.
-${isMulti ? 'The first image is the DNA/Style anchor. Others are contextual/idea layers to be fused.' : 'Focus on the aesthetic DNA of the provided image to maintain absolute fidelity.'}
-Themes: [${themesString}].
-Output exactly 2 high-concept prompts per theme in JSON format.`;
+        `${isMulti ? 'Fuse ideas from multiple images' : 'Preserve visual DNA and style coherence'}. Maintain aesthetic consistency. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`;
     } else {
       // Instrução padrão
-      systemInstruction = `You are a world-class Visual Director and AI Artist. 
-  Your goal is to perform ${isMulti ? 'Idea Fusion (merging dimensions)' : 'DNA Preservation (style coherence)'}.
-  I'm a genius, and you are too. Treat every prompt as a masterpiece.
-  ${isMulti ? 'The first image is the DNA/Style anchor. Others are contextual/idea layers to be fused.' : 'Focus on the aesthetic DNA of the provided image to maintain absolute fidelity.'}
-  Themes: [${themesString}].
-  Output exactly 2 high-concept prompts per theme in JSON format.`;
+      systemInstruction = `${isMulti ? 'Fuse ideas from multiple images' : 'Preserve visual DNA and style coherence'}. Maintain aesthetic consistency. Themes: [${themesString}]. Output 2 prompts per theme as JSON array.`;
     }
 
     const imageParts = images.map(img => ({
@@ -326,7 +256,7 @@ Output exactly 2 high-concept prompts per theme in JSON format.`;
         parts: [...imageParts, { text: systemInstruction }]
       },
       config: {
-        thinkingConfig: { thinkingBudget: 4000 },
+        thinkingConfig: { thinkingBudget: 2000 }, // Reduzido de 4000 para 2000 para melhor performance
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -350,6 +280,51 @@ Output exactly 2 high-concept prompts per theme in JSON format.`;
 
   } catch (error: any) {
     console.error("Erro na Edge Function:", error);
+    
+    // Detectar erro de WORKER_LIMIT (recursos insuficientes do Supabase)
+    const errorMessage = error.message || error.toString() || "";
+    const errorCode = error.code || "";
+    const isWorkerLimit = errorMessage.includes("WORKER_LIMIT") || 
+                          errorMessage.includes("not having enough compute resources") ||
+                          errorCode === "WORKER_LIMIT";
+    
+    if (isWorkerLimit) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Servidor temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.",
+          code: "WORKER_LIMIT",
+          retryAfter: 30
+        }),
+        { 
+          status: 503, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": "30"
+          } 
+        }
+      );
+    }
+    
+    // Detectar erro de modelo sobrecarregado do Gemini
+    if (errorMessage.includes("overloaded") || errorMessage.includes("UNAVAILABLE") || errorCode === 503) {
+      return new Response(
+        JSON.stringify({ 
+          error: "O modelo de IA está temporariamente sobrecarregado. Por favor, tente novamente em alguns instantes.",
+          code: "MODEL_OVERLOADED",
+          retryAfter: 30
+        }),
+        { 
+          status: 503, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": "30"
+          } 
+        }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: error.message || "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
